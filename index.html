@@ -1,0 +1,1182 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>防伪二维码系统 Pro</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --bg: #f1f5f9;
+            --card: #ffffff;
+            --text: #1e293b;
+            --text-secondary: #64748b;
+            --border: #e2e8f0;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: var(--bg);
+            min-height: 100vh;
+            color: var(--text);
+        }
+
+        /* 登录页 */
+        .login-screen {
+            position: fixed; inset: 0;
+            background: linear-gradient(135deg, var(--primary) 0%, #8b5cf6 50%, #a855f7 100%);
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            z-index: 2000;
+            transition: opacity 0.5s;
+        }
+        .login-screen.hidden { opacity: 0; pointer-events: none; }
+        .login-box {
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(20px);
+            padding: 40px 30px;
+            border-radius: 24px;
+            width: 90%; max-width: 360px;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.25);
+            text-align: center;
+        }
+        .login-box .logo {
+            width: 70px; height: 70px;
+            background: linear-gradient(135deg, var(--primary), #8b5cf6);
+            border-radius: 20px;
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 20px;
+            font-size: 32px;
+        }
+        .login-box h2 { font-size: 22px; margin-bottom: 8px; }
+        .login-box p { color: var(--text-secondary); font-size: 14px; margin-bottom: 25px; }
+        .login-box input {
+            width: 100%; padding: 14px 18px;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            font-size: 16px;
+            margin-bottom: 15px;
+            transition: all 0.3s;
+        }
+        .login-box input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(99,102,241,0.1);
+        }
+        .login-box button {
+            width: 100%; padding: 14px;
+            background: linear-gradient(135deg, var(--primary), #8b5cf6);
+            color: white; border: none;
+            border-radius: 12px;
+            font-size: 16px; font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .login-box button:active { transform: scale(0.98); }
+        .login-hint { margin-top: 15px; font-size: 12px; color: #94a3b8; }
+
+        /* 主容器 */
+        .app { display: none; }
+        .app.show { display: block; }
+
+        /* 顶部导航 */
+        .app-header {
+            background: linear-gradient(135deg, var(--primary) 0%, #8b5cf6 100%);
+            color: white;
+            padding: 20px;
+            position: sticky; top: 0; z-index: 100;
+        }
+        .app-header-top {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 15px;
+        }
+        .app-header h1 { font-size: 20px; }
+        .app-header .logout-btn {
+            background: rgba(255,255,255,0.2);
+            border: none; color: white;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        /* 统计卡片 */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+        .stat-mini {
+            background: rgba(255,255,255,0.15);
+            backdrop-filter: blur(10px);
+            padding: 12px 8px;
+            border-radius: 12px;
+            text-align: center;
+        }
+        .stat-mini .num { font-size: 22px; font-weight: 700; }
+        .stat-mini .label { font-size: 11px; opacity: 0.9; margin-top: 2px; }
+
+        /* Tab栏 */
+        .tab-bar {
+            display: flex;
+            background: var(--card);
+            padding: 5px;
+            margin: -20px 15px 0;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            position: relative; z-index: 10;
+        }
+        .tab-btn {
+            flex: 1;
+            padding: 12px 5px;
+            text-align: center;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.3s;
+            border: none; background: none;
+        }
+        .tab-btn.active {
+            background: linear-gradient(135deg, var(--primary), #8b5cf6);
+            color: white;
+            box-shadow: 0 4px 15px rgba(99,102,241,0.3);
+        }
+
+        /* 内容区 */
+        .content-area { padding: 20px 15px 100px; }
+        .panel { display: none; animation: fadeIn 0.3s; }
+        .panel.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* 卡片 */
+        .card {
+            background: var(--card);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+        }
+        .card-title {
+            font-size: 16px; font-weight: 700;
+            margin-bottom: 15px;
+            display: flex; align-items: center; gap: 8px;
+        }
+
+        /* 表单 */
+        .form-group { margin-bottom: 16px; }
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 14px 16px;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            font-size: 15px;
+            background: #fafafa;
+            transition: all 0.3s;
+            font-family: inherit;
+        }
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: var(--primary);
+            background: white;
+            box-shadow: 0 0 0 4px rgba(99,102,241,0.08);
+        }
+        .form-group textarea { resize: vertical; min-height: 80px; }
+
+        /* 按钮 */
+        .btn {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), #8b5cf6);
+            color: white;
+            box-shadow: 0 4px 15px rgba(99,102,241,0.3);
+        }
+        .btn-primary:active { transform: translateY(2px); }
+        .btn-success {
+            background: linear-gradient(135deg, var(--success), #34d399);
+            color: white;
+            box-shadow: 0 4px 15px rgba(16,185,129,0.3);
+        }
+        .btn-outline {
+            background: white;
+            color: var(--primary);
+            border: 2px solid var(--primary);
+        }
+        .btn-danger {
+            background: linear-gradient(135deg, var(--danger), #f87171);
+            color: white;
+        }
+        .btn-sm {
+            padding: 8px 14px;
+            font-size: 13px;
+            width: auto;
+        }
+
+        /* 二维码展示区 */
+        .qr-showcase {
+            text-align: center;
+            padding: 25px;
+            background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+            border-radius: 16px;
+            margin-top: 20px;
+            display: none;
+            border: 2px dashed var(--border);
+        }
+        .qr-showcase.show { display: block; animation: fadeIn 0.5s; }
+        .qr-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+            color: #1e40af;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+            margin-bottom: 15px;
+        }
+        #qrcode {
+            display: inline-block;
+            padding: 15px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        }
+        .qr-meta {
+            margin-top: 15px;
+            text-align: left;
+            background: white;
+            padding: 15px;
+            border-radius: 12px;
+            font-size: 13px;
+        }
+        .qr-meta .row {
+            display: flex; justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border);
+        }
+        .qr-meta .row:last-child { border-bottom: none; }
+        .qr-meta .key { color: var(--text-secondary); }
+        .qr-meta .val { font-weight: 600; color: var(--text); font-family: monospace; }
+        .qr-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        /* 验证结果 */
+        .verify-card {
+            border-radius: 16px;
+            padding: 30px 20px;
+            text-align: center;
+            margin-top: 20px;
+            display: none;
+            position: relative;
+            overflow: hidden;
+        }
+        .verify-card.show { display: block; animation: fadeIn 0.5s; }
+        .verify-card::before {
+            content: '';
+            position: absolute; top: -50%; left: -50%;
+            width: 200%; height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.3) 0%, transparent 70%);
+            animation: pulse 3s infinite;
+        }
+        @keyframes pulse { 0%,100% { transform: scale(1); opacity: 0.5; } 50% { transform: scale(1.1); opacity: 0.8; } }
+        .verify-card.authentic { background: linear-gradient(135deg, #d1fae5, #a7f3d0); border: 2px solid var(--success); }
+        .verify-card.fake { background: linear-gradient(135deg, #fee2e2, #fecaca); border: 2px solid var(--danger); }
+        .verify-card.warning { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 2px solid var(--warning); }
+        .verify-icon { font-size: 56px; margin-bottom: 12px; position: relative; z-index: 1; }
+        .verify-title { font-size: 20px; font-weight: 800; margin-bottom: 8px; position: relative; z-index: 1; }
+        .verify-desc { font-size: 14px; color: #475569; position: relative; z-index: 1; }
+        .verify-details {
+            margin-top: 20px;
+            text-align: left;
+            background: rgba(255,255,255,0.7);
+            padding: 18px;
+            border-radius: 12px;
+            position: relative; z-index: 1;
+        }
+        .verify-details .d-row {
+            display: flex; justify-content: space-between;
+            padding: 7px 0;
+            font-size: 13px;
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+        }
+        .verify-details .d-row:last-child { border-bottom: none; }
+
+        /* 记录列表 */
+        .record-item {
+            background: var(--card);
+            border-radius: 14px;
+            padding: 16px;
+            margin-bottom: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            border-left: 4px solid var(--primary);
+            transition: transform 0.2s;
+        }
+        .record-item:active { transform: scale(0.98); }
+        .record-item .top {
+            display: flex; justify-content: space-between; align-items: flex-start;
+            margin-bottom: 8px;
+        }
+        .record-item .name { font-weight: 700; font-size: 15px; }
+        .record-item .id-code {
+            font-family: monospace;
+            font-size: 11px;
+            color: var(--text-secondary);
+            background: var(--bg);
+            padding: 3px 8px;
+            border-radius: 6px;
+            margin-top: 4px;
+            display: inline-block;
+        }
+        .record-item .meta {
+            display: flex; gap: 10px;
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 8px;
+        }
+        .record-item .tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .tag-green { background: #d1fae5; color: #065f46; }
+        .tag-gray { background: #f1f5f9; color: #475569; }
+        .tag-red { background: #fee2e2; color: #991b1b; }
+        .tag-orange { background: #fef3c7; color: #92400e; }
+        .record-actions {
+            display: flex; gap: 8px;
+            margin-top: 10px;
+        }
+
+        /* 批量生成 */
+        .batch-preview {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .batch-qr-item {
+            background: white;
+            padding: 10px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+        .batch-qr-item canvas { width: 100% !important; height: auto !important; }
+        .batch-qr-item .mini-id {
+            font-size: 9px;
+            color: var(--text-secondary);
+            margin-top: 5px;
+            font-family: monospace;
+        }
+
+        /* 底部浮动操作 */
+        .fab-bar {
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
+            background: var(--card);
+            padding: 12px 15px 20px;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.08);
+            display: flex;
+            gap: 10px;
+            z-index: 50;
+        }
+        .fab-bar .btn { margin: 0; }
+
+        /* 弹窗 */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            padding: 20px;
+            backdrop-filter: blur(5px);
+        }
+        .modal-overlay.show { display: flex; }
+        .modal-box {
+            background: var(--card);
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 340px;
+            width: 100%;
+            text-align: center;
+            animation: modalPop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            box-shadow: 0 25px 50px rgba(0,0,0,0.2);
+        }
+        @keyframes modalPop { from { transform: scale(0.7); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        .modal-box .icon { font-size: 48px; margin-bottom: 12px; }
+        .modal-box h3 { font-size: 18px; margin-bottom: 8px; }
+        .modal-box p { color: var(--text-secondary); font-size: 14px; margin-bottom: 20px; }
+
+        /* 空状态 */
+        .empty {
+            text-align: center;
+            padding: 50px 20px;
+            color: var(--text-secondary);
+        }
+        .empty svg { width: 64px; height: 64px; margin-bottom: 16px; opacity: 0.3; }
+
+        /* 工具栏 */
+        .toolbar {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        /* 搜索 */
+        .search-box {
+            position: relative;
+            margin-bottom: 15px;
+        }
+        .search-box input {
+            width: 100%;
+            padding: 12px 16px 12px 42px;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            font-size: 14px;
+            background: var(--card);
+        }
+        .search-box::before {
+            content: '🔍';
+            position: absolute;
+            left: 14px; top: 50%;
+            transform: translateY(-50%);
+            font-size: 16px;
+        }
+
+        /* 切换开关 */
+        .switch-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border);
+        }
+        .switch-row:last-child { border-bottom: none; }
+        .switch-label { font-size: 14px; font-weight: 500; }
+        .switch {
+            width: 50px; height: 28px;
+            background: var(--border);
+            border-radius: 14px;
+            position: relative;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .switch.on { background: var(--primary); }
+        .switch::after {
+            content: '';
+            position: absolute;
+            width: 24px; height: 24px;
+            background: white;
+            border-radius: 50%;
+            top: 2px; left: 2px;
+            transition: transform 0.3s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        .switch.on::after { transform: translateX(22px); }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+    <!-- 登录界面 -->
+    <div class="login-screen" id="loginScreen">
+        <div class="login-box">
+            <div class="logo">🔐</div>
+            <h2>防伪二维码系统</h2>
+            <p>安全 · 可靠 · 一物一码</p>
+            <input type="password" id="loginPwd" placeholder="请输入管理密码" onkeypress="if(event.key==='Enter')doLogin()">
+            <button onclick="doLogin()">进入系统</button>
+            <div class="login-hint">默认密码：123456<br>首次使用请设置密码</div>
+        </div>
+    </div>
+
+    <!-- 主应用 -->
+    <div class="app" id="app">
+        <div class="app-header">
+            <div class="app-header-top">
+                <h1>🔐 防伪系统</h1>
+                <button class="logout-btn" onclick="doLogout()">退出</button>
+            </div>
+            <div class="stats-row">
+                <div class="stat-mini">
+                    <div class="num" id="statTotal">0</div>
+                    <div class="label">总码数</div>
+                </div>
+                <div class="stat-mini">
+                    <div class="num" id="statVerified">0</div>
+                    <div class="label">已验证</div>
+                </div>
+                <div class="stat-mini">
+                    <div class="num" id="statToday">0</div>
+                    <div class="label">今日生成</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-bar">
+            <button class="tab-btn active" onclick="switchTab('generate', this)">生成</button>
+            <button class="tab-btn" onclick="switchTab('batch', this)">批量</button>
+            <button class="tab-btn" onclick="switchTab('verify', this)">验证</button>
+            <button class="tab-btn" onclick="switchTab('records', this)">记录</button>
+            <button class="tab-btn" onclick="switchTab('settings', this)">设置</button>
+        </div>
+
+        <div class="content-area">
+            <!-- 生成面板 -->
+            <div id="panel-generate" class="panel active">
+                <div class="card">
+                    <div class="card-title">📝 生成单个防伪码</div>
+                    <div class="form-group">
+                        <label>产品名称 *</label>
+                        <input type="text" id="productName" placeholder="例如：飞天茅台 53度 500ml">
+                    </div>
+                    <div class="form-group">
+                        <label>批次号</label>
+                        <input type="text" id="batchNo" placeholder="例如：20260715-A001">
+                    </div>
+                    <div class="form-group">
+                        <label>备注信息</label>
+                        <textarea id="remark" placeholder="例如：限量版，编号001-100，生产日期等..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>附加的话 / 寄语 💌</label>
+                        <textarea id="message" placeholder="例如：感谢您购买本产品，愿您生活愉快！这段文字将显示在验证页面下方..."></textarea>
+                    </div>
+                    <button class="btn btn-primary" onclick="generateSingle()">生成防伪二维码</button>
+                </div>
+
+                <div id="qrResult" class="qr-showcase">
+                    <div class="qr-badge">🔒 区块链级防伪 · 唯一标识</div>
+                    <div id="qrcode"></div>
+                    <div class="qr-meta">
+                        <div class="row"><span class="key">防伪ID</span><span class="val" id="qrId"></span></div>
+                        <div class="row"><span class="key">产品名称</span><span class="val" id="qrProduct"></span></div>
+                        <div class="row"><span class="key">生成时间</span><span class="val" id="qrTime"></span></div>
+                        <div class="row"><span class="key">验证状态</span><span class="val" id="qrStatus">未验证</span></div>
+                        <div class="row" id="qrMessageRow" style="display:none;"><span class="key">附加寄语</span><span class="val" id="qrMessage" style="color:var(--warning);font-weight:700;"></span></div>
+                    </div>
+                    <div class="qr-actions">
+                        <button class="btn btn-success" onclick="downloadQR()">📥 下载图片</button>
+                        <button class="btn btn-outline" onclick="copyLink()">📋 复制链接</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 批量面板 -->
+            <div id="panel-batch" class="panel">
+                <div class="card">
+                    <div class="card-title">📦 批量生成防伪码</div>
+                    <div class="form-group">
+                        <label>产品名称 *</label>
+                        <input type="text" id="batchProductName" placeholder="例如：某品牌茶叶">
+                    </div>
+                    <div class="form-group">
+                        <label>批次号</label>
+                        <input type="text" id="batchBatchNo" placeholder="例如：BATCH-2026-001">
+                    </div>
+                    <div class="form-group">
+                        <label>生成数量（1-50）</label>
+                        <input type="number" id="batchQty" value="10" min="1" max="50">
+                    </div>
+                    <div class="form-group">
+                        <label>统一附加寄语 💌（可选）</label>
+                        <textarea id="batchMessage" placeholder="批量生成时每张二维码附带的统一寄语..."></textarea>
+                    </div>
+                    <button class="btn btn-primary" onclick="generateBatch()">批量生成</button>
+                </div>
+                <div id="batchResult"></div>
+            </div>
+
+            <!-- 验证面板 -->
+            <div id="panel-verify" class="panel">
+                <div class="card">
+                    <div class="card-title">🔍 验证产品真伪</div>
+                    <div class="form-group">
+                        <label>防伪ID 或 验证链接</label>
+                        <input type="text" id="verifyInput" placeholder="粘贴防伪ID，或扫描结果的完整链接">
+                    </div>
+                    <button class="btn btn-primary" onclick="verifyQR()">立即验证</button>
+                </div>
+
+                <div id="verifyResult" class="verify-card">
+                    <div class="verify-icon" id="vIcon"></div>
+                    <div class="verify-title" id="vTitle"></div>
+                    <div class="verify-desc" id="vDesc"></div>
+                    <div class="verify-details" id="vDetails"></div>
+                </div>
+            </div>
+
+            <!-- 记录面板 -->
+            <div id="panel-records" class="panel">
+                <div class="search-box">
+                    <input type="text" id="searchInput" placeholder="搜索产品名称、批次号或ID..." oninput="filterRecords()">
+                </div>
+                <div class="toolbar">
+                    <button class="btn btn-sm btn-outline" onclick="exportCSV()">📄 导出CSV</button>
+                    <button class="btn btn-sm btn-outline" onclick="exportJSON()">💾 导出JSON</button>
+                    <button class="btn btn-sm btn-danger" onclick="clearAll()">🗑️ 清空</button>
+                </div>
+                <div id="recordsList"></div>
+            </div>
+
+            <!-- 设置面板 -->
+            <div id="panel-settings" class="panel">
+                <div class="card">
+                    <div class="card-title">⚙️ 系统设置</div>
+                    <div class="switch-row">
+                        <span class="switch-label">修改管理密码</span>
+                    </div>
+                    <div class="form-group" style="margin-top:10px;">
+                        <input type="password" id="oldPwd" placeholder="当前密码">
+                    </div>
+                    <div class="form-group">
+                        <input type="password" id="newPwd" placeholder="新密码">
+                    </div>
+                    <div class="form-group">
+                        <input type="password" id="confirmPwd" placeholder="确认新密码">
+                    </div>
+                    <button class="btn btn-primary" onclick="changePassword()">修改密码</button>
+                </div>
+
+                <div class="card" style="margin-top:15px;">
+                    <div class="card-title">📊 数据管理</div>
+                    <div class="form-group">
+                        <label>导入数据（JSON格式）</label>
+                        <input type="file" id="importFile" accept=".json" onchange="importData(this)">
+                    </div>
+                    <button class="btn btn-outline" onclick="document.getElementById('importFile').click()">📁 选择文件导入</button>
+                </div>
+
+                <div class="card" style="margin-top:15px;">
+                    <div class="card-title">ℹ️ 关于</div>
+                    <p style="font-size:13px;color:var(--text-secondary);line-height:1.8;">
+                        防伪二维码系统 v2.0<br>
+                        所有数据存储在浏览器本地<br>
+                        建议定期导出备份数据<br>
+                        每个防伪码具有唯一不可复制的ID
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 弹窗 -->
+    <div class="modal-overlay" id="modal">
+        <div class="modal-box">
+            <div class="icon" id="modalIcon">✅</div>
+            <h3 id="modalTitle">提示</h3>
+            <p id="modalText">操作成功</p>
+            <button class="btn btn-primary" onclick="closeModal()">确定</button>
+        </div>
+    </div>
+
+    <script>
+        // ========== 数据层 ==========
+        const DB_KEY = 'antiFakeDB_v2';
+        const PWD_KEY = 'antiFakePwd';
+        let db = { records: [], settings: { password: '123456' } };
+        let currentQR = null;
+
+        function loadDB() {
+            const raw = localStorage.getItem(DB_KEY);
+            if (raw) {
+                db = JSON.parse(raw);
+            } else {
+                const old = localStorage.getItem('qrDatabase');
+                if (old) {
+                    db.records = JSON.parse(old).map(r => ({
+                        ...r,
+                        verifyHistory: r.verifyHistory || [],
+                        status: r.status || 'active'
+                    }));
+                    saveDB();
+                }
+            }
+            // 兼容旧密码
+            const oldPwd = localStorage.getItem(PWD_KEY);
+            if (oldPwd) {
+                db.settings.password = oldPwd;
+                localStorage.removeItem(PWD_KEY);
+                saveDB();
+            }
+        }
+
+        function saveDB() {
+            localStorage.setItem(DB_KEY, JSON.stringify(db));
+        }
+
+        // ========== 登录 ==========
+        function doLogin() {
+            const pwd = document.getElementById('loginPwd').value;
+            if (pwd === db.settings.password) {
+                document.getElementById('loginScreen').classList.add('hidden');
+                document.getElementById('app').classList.add('show');
+                updateStats();
+            } else {
+                showModal('❌', '密码错误', '请输入正确的管理密码');
+            }
+        }
+
+        function doLogout() {
+            document.getElementById('loginScreen').classList.remove('hidden');
+            document.getElementById('app').classList.remove('show');
+            document.getElementById('loginPwd').value = '';
+        }
+
+        // ========== 标签切换 ==========
+        function switchTab(tab, btn) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+            if (btn) btn.classList.add('active');
+            document.getElementById('panel-' + tab).classList.add('active');
+            if (tab === 'records') renderRecords();
+            if (tab === 'generate') updateStats();
+        }
+
+        // ========== 统计 ==========
+        function updateStats() {
+            const today = new Date().toDateString();
+            document.getElementById('statTotal').textContent = db.records.length;
+            document.getElementById('statVerified').textContent = db.records.filter(r => r.verifyCount > 0).length;
+            document.getElementById('statToday').textContent = db.records.filter(r => {
+                return new Date(r.createTimestamp).toDateString() === today;
+            }).length;
+        }
+
+        // ========== 生成唯一ID ==========
+        function genId() {
+            const t = Date.now().toString(36).toUpperCase();
+            const r1 = Math.random().toString(36).substring(2, 8).toUpperCase();
+            const r2 = Math.random().toString(36).substring(2, 6).toUpperCase();
+            return `${t}-${r1}-${r2}`;
+        }
+
+        function getVerifyUrl(id) {
+            const base = window.location.href.split('?')[0].split('#')[0];
+            return `${base}?verify=${id}`;
+        }
+
+        // ========== 单个生成 ==========
+        function generateSingle() {
+            const name = document.getElementById('productName').value.trim();
+            const batch = document.getElementById('batchNo').value.trim();
+            const remark = document.getElementById('remark').value.trim();
+            const message = document.getElementById('message').value.trim();
+
+            if (!name) { showModal('⚠️', '缺少信息', '请输入产品名称'); return; }
+
+            const record = createRecord(name, batch, remark, message);
+            db.records.push(record);
+            saveDB();
+            currentQR = record;
+
+            showQR(record);
+            updateStats();
+            showModal('✅', '生成成功', `防伪码 ${record.id} 已生成`);
+        }
+
+        function createRecord(name, batch, remark, message) {
+            const now = new Date();
+            return {
+                id: genId(),
+                productName: name,
+                batchNo: batch,
+                remark: remark,
+                message: message || '',
+                createTime: now.toLocaleString('zh-CN'),
+                createTimestamp: now.getTime(),
+                verifyCount: 0,
+                firstVerifyTime: null,
+                verifyHistory: [],
+                status: 'active'
+            };
+        }
+
+        function showQR(record) {
+            const container = document.getElementById('qrResult');
+            container.classList.add('show');
+            document.getElementById('qrcode').innerHTML = '';
+
+            new QRCode(document.getElementById('qrcode'), {
+                text: getVerifyUrl(record.id),
+                width: 200,
+                height: 200,
+                colorDark: '#1e293b',
+                colorLight: '#ffffff',
+                correctLevel: QRCode.CorrectLevel.H
+            });
+
+            document.getElementById('qrId').textContent = record.id;
+            document.getElementById('qrProduct').textContent = record.productName;
+            document.getElementById('qrTime').textContent = record.createTime;
+            document.getElementById('qrStatus').textContent = record.verifyCount > 0 ? `已验证 ${record.verifyCount} 次` : '未验证';
+
+            const msgRow = document.getElementById('qrMessageRow');
+            const msgEl = document.getElementById('qrMessage');
+            if (record.message) {
+                msgRow.style.display = 'flex';
+                msgEl.textContent = record.message;
+            } else {
+                msgRow.style.display = 'none';
+            }
+
+            container.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // ========== 批量生成 ==========
+        function generateBatch() {
+            const name = document.getElementById('batchProductName').value.trim();
+            const batch = document.getElementById('batchBatchNo').value.trim();
+            const qty = Math.min(50, Math.max(1, parseInt(document.getElementById('batchQty').value) || 10));
+            const batchMsg = document.getElementById('batchMessage').value.trim();
+
+            if (!name) { showModal('⚠️', '缺少信息', '请输入产品名称'); return; }
+
+            const container = document.getElementById('batchResult');
+            container.innerHTML = '<div class="card"><div class="card-title">📦 批量生成结果</div><div class="batch-preview" id="batchGrid"></div><div style="margin-top:15px;"><button class="btn btn-success" onclick="downloadBatch()">📥 下载全部</button></div></div>';
+
+            const grid = document.getElementById('batchGrid');
+            const batchRecords = [];
+
+            for (let i = 0; i < qty; i++) {
+                const record = createRecord(name, batch, `批量生成 #${i + 1}/${qty}`, batchMsg);
+                db.records.push(record);
+                batchRecords.push(record);
+
+                const div = document.createElement('div');
+                div.className = 'batch-qr-item';
+                div.id = `batch-qr-${i}`;
+                grid.appendChild(div);
+
+                setTimeout(() => {
+                    new QRCode(div, {
+                        text: getVerifyUrl(record.id),
+                        width: 120,
+                        height: 120,
+                        colorDark: '#1e293b',
+                        colorLight: '#ffffff',
+                        correctLevel: QRCode.CorrectLevel.H
+                    });
+                    div.innerHTML += `<div class="mini-id">${record.id.slice(-8)}</div>`;
+                }, i * 100);
+            }
+
+            saveDB();
+            updateStats();
+            showModal('✅', '批量生成完成', `已成功生成 ${qty} 个防伪码`);
+        }
+
+        function downloadBatch() {
+            showModal('⏳', '请稍候', '批量下载功能开发中，建议逐个截图保存');
+        }
+
+        // ========== 下载 & 复制 ==========
+        function downloadQR() {
+            if (!currentQR) return;
+            const qrDiv = document.getElementById('qrcode');
+            html2canvas(qrDiv, { backgroundColor: '#ffffff', scale: 2 }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = `防伪码_${currentQR.id}.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            });
+        }
+
+        function copyLink() {
+            if (!currentQR) return;
+            navigator.clipboard.writeText(getVerifyUrl(currentQR.id)).then(() => {
+                showModal('📋', '已复制', '验证链接已复制到剪贴板');
+            });
+        }
+
+        // ========== 验证 ==========
+        function verifyQR() {
+            let input = document.getElementById('verifyInput').value.trim();
+            if (!input) { showModal('⚠️', '输入为空', '请输入防伪ID或验证链接'); return; }
+
+            let id = input;
+            if (input.includes('?verify=')) {
+                id = input.split('?verify=')[1].split('&')[0];
+            }
+
+            const record = db.records.find(r => r.id === id);
+            const result = document.getElementById('verifyResult');
+
+            if (!record) {
+                result.className = 'verify-card show fake';
+                document.getElementById('vIcon').textContent = '❌';
+                document.getElementById('vTitle').textContent = '验证失败：非正品';
+                document.getElementById('vDesc').textContent = '该防伪码不存在于官方数据库，请警惕假冒产品！';
+                document.getElementById('vDetails').innerHTML = `
+                    <div class="d-row"><span>查询ID</span><span style="font-family:monospace">${id}</span></div>
+                    <div class="d-row"><span>查询时间</span><span>${new Date().toLocaleString('zh-CN')}</span></div>
+                    <div class="d-row"><span>结果</span><span style="color:#dc2626;font-weight:700">数据库无记录</span></div>
+                `;
+                return;
+            }
+
+            // 更新验证记录
+            record.verifyCount++;
+            const now = new Date();
+            const vTime = now.toLocaleString('zh-CN');
+            if (!record.firstVerifyTime) record.firstVerifyTime = vTime;
+            record.verifyHistory.push({ time: vTime, device: navigator.userAgent.slice(0, 30) });
+            saveDB();
+            updateStats();
+
+            if (record.verifyCount === 1) {
+                result.className = 'verify-card show authentic';
+                document.getElementById('vIcon').textContent = '✅';
+                document.getElementById('vTitle').textContent = '验证成功：正品保障';
+                document.getElementById('vDesc').textContent = '恭喜！此产品为官方正品，首次验证通过。';
+            } else {
+                result.className = 'verify-card show warning';
+                document.getElementById('vIcon').textContent = '⚠️';
+                document.getElementById('vTitle').textContent = '验证提醒：多次查询';
+                document.getElementById('vDesc').textContent = `此防伪码已被查询 ${record.verifyCount} 次，请注意核实。`;
+            }
+
+            document.getElementById('vDetails').innerHTML = `
+                <div class="d-row"><span>产品名称</span><span>${record.productName}</span></div>
+                <div class="d-row"><span>防伪ID</span><span style="font-family:monospace;font-size:11px">${record.id}</span></div>
+                ${record.batchNo ? `<div class="d-row"><span>批次号</span><span>${record.batchNo}</span></div>` : ''}
+                ${record.remark ? `<div class="d-row"><span>备注</span><span>${record.remark}</span></div>` : ''}
+                <div class="d-row"><span>生成时间</span><span>${record.createTime}</span></div>
+                <div class="d-row"><span>首次验证</span><span>${record.firstVerifyTime || '刚刚'}</span></div>
+                <div class="d-row"><span>验证次数</span><span style="font-weight:700">${record.verifyCount} 次</span></div>
+                <div class="d-row"><span>本次查询</span><span>${vTime}</span></div>
+            `;
+
+            result.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // ========== 记录管理 ==========
+        function renderRecords() {
+            const list = document.getElementById('recordsList');
+            const search = document.getElementById('searchInput').value.toLowerCase();
+            let records = db.records.slice().reverse();
+
+            if (search) {
+                records = records.filter(r => 
+                    r.productName.toLowerCase().includes(search) ||
+                    (r.batchNo && r.batchNo.toLowerCase().includes(search)) ||
+                    r.id.toLowerCase().includes(search)
+                );
+            }
+
+            if (records.length === 0) {
+                list.innerHTML = `<div class="empty"><div style="font-size:48px;margin-bottom:10px">📭</div><p>暂无记录</p></div>`;
+                return;
+            }
+
+            list.innerHTML = records.map(r => {
+                let tagClass = 'tag-gray', tagText = '未验证';
+                if (r.verifyCount === 1) { tagClass = 'tag-green'; tagText = '✓ 正品'; }
+                else if (r.verifyCount > 1) { tagClass = 'tag-orange'; tagText = `⚠ ${r.verifyCount}次`; }
+
+                return `
+                    <div class="record-item">
+                        <div class="top">
+                            <div>
+                                <div class="name">${r.productName}</div>
+                                <div class="id-code">${r.id}</div>
+                            </div>
+                            <span class="tag ${tagClass}">${tagText}</span>
+                        </div>
+                        <div class="meta">
+                            ${r.batchNo ? `<span>📦 ${r.batchNo}</span>` : ''}
+                            <span>🕐 ${r.createTime}</span>
+                            ${r.message ? `<span>💌 有寄语</span>` : ''}
+                        </div>
+                        <div class="record-actions">
+                            <button class="btn btn-sm btn-outline" onclick="quickVerify('${r.id}')">🔍 验证</button>
+                            <button class="btn btn-sm btn-outline" onclick="copyId('${r.id}')">📋 复制ID</button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteRecord('${r.id}')">🗑️ 删除</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function filterRecords() { renderRecords(); }
+
+        function quickVerify(id) {
+            document.getElementById('verifyInput').value = id;
+            switchTab('verify', document.querySelectorAll('.tab-btn')[2]);
+            verifyQR();
+        }
+
+        function copyId(id) {
+            navigator.clipboard.writeText(id).then(() => {
+                showModal('📋', '已复制', `防伪ID ${id} 已复制`);
+            });
+        }
+
+        function deleteRecord(id) {
+            if (!confirm('确定删除此记录？')) return;
+            db.records = db.records.filter(r => r.id !== id);
+            saveDB();
+            renderRecords();
+            updateStats();
+            showModal('🗑️', '已删除', '记录已删除');
+        }
+
+        function clearAll() {
+            if (!confirm('⚠️ 确定清空所有记录？此操作不可恢复！')) return;
+            db.records = [];
+            saveDB();
+            renderRecords();
+            updateStats();
+            showModal('🗑️', '已清空', '所有记录已清除');
+        }
+
+        // ========== 导出 ==========
+        function exportCSV() {
+            if (db.records.length === 0) { showModal('⚠️', '无数据', '没有可导出的记录'); return; }
+            const headers = ['防伪ID', '产品名称', '批次号', '备注', '附加寄语', '生成时间', '验证次数', '首次验证时间'];
+            const rows = db.records.map(r => [
+                r.id, r.productName, r.batchNo || '', r.remark || '', r.message || '',
+                r.createTime, r.verifyCount, r.firstVerifyTime || ''
+            ]);
+            const csv = [headers, ...rows].map(r => r.map(c => `"${c}"`).join(',')).join('\n');
+            downloadFile(csv, '防伪码记录.csv', 'text/csv');
+            showModal('📄', '导出成功', 'CSV文件已下载');
+        }
+
+        function exportJSON() {
+            const data = JSON.stringify(db, null, 2);
+            downloadFile(data, '防伪码备份.json', 'application/json');
+            showModal('💾', '导出成功', 'JSON备份文件已下载');
+        }
+
+        function downloadFile(content, filename, type) {
+            const blob = new Blob([content], { type });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function importData(input) {
+            const file = input.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = e => {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if (data.records && Array.isArray(data.records)) {
+                        if (confirm(`导入 ${data.records.length} 条记录？将合并到现有数据。`)) {
+                            db.records = [...db.records, ...data.records];
+                            saveDB();
+                            updateStats();
+                            showModal('✅', '导入成功', `已导入 ${data.records.length} 条记录`);
+                        }
+                    } else {
+                        showModal('❌', '格式错误', '文件格式不正确');
+                    }
+                } catch (err) {
+                    showModal('❌', '导入失败', '无法解析文件');
+                }
+            };
+            reader.readAsText(file);
+            input.value = '';
+        }
+
+        // ========== 设置 ==========
+        function changePassword() {
+            const old = document.getElementById('oldPwd').value;
+            const neu = document.getElementById('newPwd').value;
+            const confirm = document.getElementById('confirmPwd').value;
+
+            if (old !== db.settings.password) { showModal('❌', '密码错误', '当前密码不正确'); return; }
+            if (!neu || neu.length < 4) { showModal('⚠️', '密码太短', '新密码至少4位'); return; }
+            if (neu !== confirm) { showModal('⚠️', '密码不一致', '两次输入的新密码不同'); return; }
+
+            db.settings.password = neu;
+            saveDB();
+            document.getElementById('oldPwd').value = '';
+            document.getElementById('newPwd').value = '';
+            document.getElementById('confirmPwd').value = '';
+            showModal('✅', '修改成功', '管理密码已更新');
+        }
+
+        // ========== 弹窗 ==========
+        function showModal(icon, title, text) {
+            document.getElementById('modalIcon').textContent = icon;
+            document.getElementById('modalTitle').textContent = title;
+            document.getElementById('modalText').textContent = text;
+            document.getElementById('modal').classList.add('show');
+        }
+
+        function closeModal() {
+            document.getElementById('modal').classList.remove('show');
+        }
+
+        // ========== 初始化 ==========
+        window.onload = function() {
+            loadDB();
+
+            // 检查URL参数（扫码直达）
+            const params = new URLSearchParams(window.location.search);
+            const vid = params.get('verify');
+            if (vid) {
+                // 直接进入验证模式，无需登录
+                document.getElementById('loginScreen').classList.add('hidden');
+                document.getElementById('app').classList.add('show');
+                document.getElementById('verifyInput').value = vid;
+                switchTab('verify', document.querySelectorAll('.tab-btn')[2]);
+                setTimeout(verifyQR, 300);
+                return;
+            }
+
+            updateStats();
+        };
+    </script>
+</body>
+</html>
