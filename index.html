@@ -313,6 +313,21 @@ textarea#dbEditor{width:100%;min-height:240px;padding:12px;border:1px solid var(
             <button class="btn" onclick="exportAllJson()">导出JSON备份</button>
         </div>
         <hr style="margin:24px 0;border-color:var(--border-green)">
+        <hr style="margin:24px 0;border-color:var(--border-green)">
+<h3 style="margin-bottom:16px;color:var(--text-dark)">修改管理员密码</h3>
+<div class="form-item">
+    <label>原密码</label>
+    <input type="password" id="oldPwd" placeholder="请输入当前密码">
+</div>
+<div class="form-item">
+    <label>新密码</label>
+    <input type="password" id="newPwd" placeholder="请输入新密码">
+</div>
+<div class="form-item">
+    <label>确认新密码</label>
+    <input type="password" id="confirmPwd" placeholder="请再次输入新密码">
+</div>
+<button class="btn" onclick="changeAdminPassword()">修改密码</button>
         <h3 style="margin-bottom:16px;color:var(--text-dark)">数据库记录管理</h3>
         <div class="db-list-wrap" id="dbListWrap">
             <div class="empty-tip">暂无记录</div>
@@ -397,8 +412,8 @@ textarea#dbEditor{width:100%;min-height:240px;padding:12px;border:1px solid var(
 <script>
 let LOGO_BASE64 = "";
 const DB_KEY = "antiFakeDB_v2";
-const ADMIN_PASSWORD = "030227";
-let db = { records: [], settings: { password: ADMIN_PASSWORD } };
+const DEFAULT_PASSWORD = "030227";
+let db = { records: [], settings: { password: DEFAULT_PASSWORD } };
 let scanner = null;
 let currentCamera = "environment";
 let currentQrData = null;
@@ -410,10 +425,16 @@ let tapClickCount = 0, tapTimer;
 function loadData(){
     const cache = localStorage.getItem(DB_KEY);
     if(cache){
-        try{ db = JSON.parse(cache); }catch(e){ db = { records:[],settings:{password:ADMIN_PASSWORD} }; }
+        try{ 
+            db = JSON.parse(cache); 
+        }catch(e){ 
+            db = { records:[], settings:{password:DEFAULT_PASSWORD} }; 
+        }
     }
     if(!db.records) db.records = [];
-    if(!db.settings) db.settings = {password:ADMIN_PASSWORD};
+    if(!db.settings) db.settings = {password:DEFAULT_PASSWORD};
+    // 兼容旧数据：若本地没有密码字段，则回退到默认密码
+    if(!db.settings.password) db.settings.password = DEFAULT_PASSWORD;
 }
 function saveData(){
     localStorage.setItem(DB_KEY, JSON.stringify(db));
@@ -447,7 +468,9 @@ function closePwdModal(){
 }
 function checkPwd(){
     const val = document.getElementById("pwdInput").value.trim();
-    if(val === ADMIN_PASSWORD){
+    // 读取当前生效密码（支持修改后的持久化密码）
+    const currentPwd = (db.settings && db.settings.password) ? db.settings.password : DEFAULT_PASSWORD;
+    if(val === currentPwd){
         closePwdModal();
         document.getElementById("homePanel").style.display="none";
         document.getElementById("genPanel").classList.add("show");
@@ -1081,6 +1104,37 @@ window.onload = function(){
         if(isOnBirchDomain) toast("🔗 白桦官方防伪系统，正在自动验证...");
         submitVerify();
     }
+}
+function changeAdminPassword(){
+    const oldPwd = document.getElementById("oldPwd").value.trim();
+    const newPwd = document.getElementById("newPwd").value.trim();
+    const confirmPwd = document.getElementById("confirmPwd").value.trim();
+    
+    const currentPwd = (db.settings && db.settings.password) ? db.settings.password : DEFAULT_PASSWORD;
+    
+    if(!oldPwd || !newPwd || !confirmPwd){
+        return toast("请完整填写原密码、新密码和确认密码");
+    }
+    if(oldPwd !== currentPwd){
+        return toast("原密码错误，请重新输入");
+    }
+    if(newPwd !== confirmPwd){
+        return toast("两次输入的新密码不一致，请重新确认");
+    }
+    if(newPwd === currentPwd){
+        return toast("新密码不能与旧密码相同");
+    }
+    
+    // 更新密码并持久化
+    db.settings.password = newPwd;
+    saveData();
+    
+    // 清空输入框
+    document.getElementById("oldPwd").value = "";
+    document.getElementById("newPwd").value = "";
+    document.getElementById("confirmPwd").value = "";
+    
+    toast("管理员密码修改成功，下次登录请使用新密码");
 }
 </script>
 </body>
