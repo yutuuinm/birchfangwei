@@ -313,21 +313,23 @@ textarea#dbEditor{width:100%;min-height:240px;padding:12px;border:1px solid var(
             <button class="btn" onclick="exportAllJson()">导出JSON备份</button>
         </div>
         <hr style="margin:24px 0;border-color:var(--border-green)">
-        <hr style="margin:24px 0;border-color:var(--border-green)">
-<h3 style="margin-bottom:16px;color:var(--text-dark)">修改管理员密码</h3>
-<div class="form-item">
-    <label>原密码</label>
-    <input type="password" id="oldPwd" placeholder="请输入当前密码">
+        <div id="pwdChangeSection" style="display:none">
+    <hr style="margin:24px 0;border-color:var(--border-green)">
+    <h3 style="margin-bottom:16px;color:var(--text-dark)">修改管理员密码</h3>
+    <div class="form-item">
+        <label>原密码</label>
+        <input type="password" id="oldPwd" placeholder="请输入当前密码">
+    </div>
+    <div class="form-item">
+        <label>新密码</label>
+        <input type="password" id="newPwd" placeholder="请输入新密码">
+    </div>
+    <div class="form-item">
+        <label>确认新密码</label>
+        <input type="password" id="confirmPwd" placeholder="请再次输入新密码">
+    </div>
+    <button class="btn" onclick="changeAdminPassword()">修改密码</button>
 </div>
-<div class="form-item">
-    <label>新密码</label>
-    <input type="password" id="newPwd" placeholder="请输入新密码">
-</div>
-<div class="form-item">
-    <label>确认新密码</label>
-    <input type="password" id="confirmPwd" placeholder="请再次输入新密码">
-</div>
-<button class="btn" onclick="changeAdminPassword()">修改密码</button>
         <h3 style="margin-bottom:16px;color:var(--text-dark)">数据库记录管理</h3>
         <div class="db-list-wrap" id="dbListWrap">
             <div class="empty-tip">暂无记录</div>
@@ -418,8 +420,10 @@ let scanner = null;
 let currentCamera = "environment";
 let currentQrData = null;
 // 唤醒计数
+// 唤醒计数
 let keyPressCount = 0, keyTimer;
 let tapClickCount = 0, tapTimer;
+let keyPressCount6 = 0, keyTimer6;
 
 // 本地数据库读写
 function loadData(){
@@ -454,6 +458,7 @@ function backHome(){
     document.getElementById("homePanel").style.display="flex";
     document.querySelectorAll(".input-area,.result-card,.gen-panel").forEach(el=>el.classList.remove("show"));
     document.getElementById("inputId").value = "";
+    document.getElementById("pwdChangeSection").style.display = "none";   // ← 新增
 }
 
 // 密码弹窗控制
@@ -482,12 +487,13 @@ function checkPwd(){
 
 // 唤醒监听：键盘连续6个8
 document.addEventListener("keydown",e=>{
+    // 原有：连按6个"8"唤醒管理员入口
     if(e.key === "8"){
         keyPressCount++;
         clearTimeout(keyTimer);
         keyTimer = setTimeout(()=>keyPressCount=0,1200);
         if(keyPressCount >=6){
-            e.preventDefault(); // 阻止第6个及之后的8输入到页面
+            e.preventDefault();
             keyPressCount = 0;
             document.getElementById("adminEntry").style.display="block";
             openPwdModal();
@@ -499,7 +505,33 @@ document.addEventListener("keydown",e=>{
     }else{
         keyPressCount = 0;
     }
+    
+    // 新增：连按6个"6"唤起修改密码入口（仅在管理员界面生效）
+    if(e.key === "6"){
+        keyPressCount6++;
+        clearTimeout(keyTimer6);
+        keyTimer6 = setTimeout(()=>keyPressCount6=0,1200);
+        if(keyPressCount6 >= 6){
+            e.preventDefault();
+            keyPressCount6 = 0;
+            const genPanel = document.getElementById("genPanel");
+            if(genPanel && genPanel.classList.contains("show")){
+                const pwdSection = document.getElementById("pwdChangeSection");
+                if(pwdSection){
+                    pwdSection.style.display = "block";
+                    toast("已唤起修改密码入口");
+                    setTimeout(()=>{
+                        const oldPwd = document.getElementById("oldPwd");
+                        if(oldPwd) oldPwd.focus();
+                    }, 100);
+                }
+            }
+        }
+    }else{
+        keyPressCount6 = 0;
+    }
 })
+
 // 头部6次点击唤醒
 document.getElementById("tapArea").addEventListener("click",()=>{
     tapClickCount++;
@@ -1013,10 +1045,9 @@ function submitVerify(){
     saveData();
     // 渲染产品信息
     let html = `<div class="info-line"><span class="info-label">产品名称</span><span class="info-val">${record.productName}</span></div>`;
-    if(record.batchNo) html += `<div class="info-line"><span class="info-label">批次</span><span class="info-val">${record.batchNo}</span></div>`;
+    if(record.batchNo) html += `<div class="info-line"><span class="info-label">专属定制编号</span><span class="info-val">${record.batchNo}</span></div>`;
     html += `
         <div class="info-line"><span class="info-label">防伪ID</span><span class="info-val">${record.id}</span></div>
-        <div class="info-line"><span class="info-label">生成时间</span><span class="info-val">${record.createTime}</span></div>
         <div class="info-line"><span class="info-label">累计查询</span><span class="info-val">${record.verifyCount}次</span></div>
     `;
     infoWrap.innerHTML = html;
