@@ -230,8 +230,17 @@ textarea#dbEditor{width:100%;min-height:240px;padding:12px;border:1px solid var(
         <div class="qr-view" id="qrShow">
             <div id="qrcode"></div>
             <p style="margin-top:10px;font-family:monospace;" id="qrIdText"></p>
+            <!-- 导出专用卡片（平时隐藏，截图时临时显示） -->
+            <div id="exportCard" style="display:none;background:#fff;border-radius:16px;padding:24px 20px;text-align:center;border:1px solid var(--border-green);margin-top:16px;width:260px;margin-left:auto;margin-right:auto;">
+                <div style="font-size:17px;font-weight:700;color:var(--green-main);margin-bottom:16px;letter-spacing:1px;">白桦官方定制防伪</div>
+                <div id="exportQrArea"></div>
+                <div style="margin-top:14px;font-family:'Courier New',monospace;font-size:15px;font-weight:700;color:var(--text-dark);background:#f6fbf8;padding:8px 12px;border-radius:8px;display:inline-block;" id="exportIdText"></div>
+                <div style="margin-top:10px;font-size:14px;color:var(--text-dark);font-weight:500;" id="exportProductName"></div>
+                <div style="margin-top:4px;font-size:12px;color:var(--text-light);" id="exportBatchNo"></div>
+                <div style="margin-top:12px;font-size:11px;color:var(--green-light);">微信扫码验证真伪</div>
+            </div>
             <div class="btn-row">
-                <button class="btn btn-light" onclick="saveQrImg()">导出二维码JPG</button>
+                <button class="btn btn-light" onclick="saveQrImg()">导出防伪标签JPG</button>
                 <button class="btn" onclick="exportAllJson()">导出完整数据库JSON</button>
             </div>
         </div>
@@ -418,8 +427,7 @@ function generateId(){
     return `${time}-${r1}`;
 }
 function getVerifyUrl(id){
-    const base = location.href.split("?")[0];
-    return `${base}?verify=${id}`;
+    return `https://www.birchfangwei.cc.cd?verify=${id}`;
 }
 
 // 单个生成防伪码
@@ -452,8 +460,16 @@ function createSingleCode(){
         width: 180, height: 180,
         colorDark: "#274637", colorLight: "#ffffff"
     })
-    document.getElementById("qrIdText").innerText = record.id;
-    toast("防伪码生成完成，自动存入本地数据库");
+    // 同步到导出卡片
+    document.getElementById("exportIdText").innerText = record.id;
+    document.getElementById("exportProductName").innerText = record.productName;
+    document.getElementById("exportBatchNo").innerText = record.batchNo ? '批次：' + record.batchNo : '';
+    document.getElementById("exportQrArea").innerHTML = "";
+    new QRCode(document.getElementById("exportQrArea"),{
+        text: getVerifyUrl(record.id),
+        width: 180, height: 180,
+        colorDark: "#274637", colorLight: "#ffffff"
+    });
 }
 
 // 批量生成
@@ -484,7 +500,10 @@ function batchCreateCode(){
 // 导出二维码图片
 function saveQrImg(){
     if(!currentQrData) return toast("请先生成防伪二维码");
-    html2canvas(document.getElementById("qrcode"),{background:"#fff",scale:2}).then(canvas=>{
+    const card = document.getElementById("exportCard");
+    card.style.display = "block"; // 临时显示
+    html2canvas(card,{backgroundColor:"#ffffff",scale:2}).then(canvas=>{
+        card.style.display = "none"; // 截图完隐藏
         const a = document.createElement("a");
         a.download = `白桦防伪_${currentQrData.id}.jpg`;
         a.href = canvas.toDataURL("image/jpeg");
