@@ -343,6 +343,27 @@ body::before{
 .msg-box.show{display:block;}
 .back-bottom{
     width:100%;padding:14px;border:2px solid var(--green-main);background:transparent;color:var(--green-main);border-radius:14px;font-size:15px;font-weight:600;cursor:pointer;margin-top:10px;
+    transition: all 0.35s var(--spring);
+    position: relative; overflow: hidden;
+    transform: translateZ(0);
+}
+.back-bottom::before{
+    content: '';
+    position: absolute;
+    top: 0; left: -100%; width: 100%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(74,124,89,0.12), transparent);
+    transition: left 0.7s var(--ease-in-out);
+    z-index: 1;
+}
+.back-bottom:hover::before{ left: 100%; }
+.back-bottom:hover{
+    background: var(--green-main); color: #fff;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(74,124,89,0.25);
+}
+.back-bottom:active{
+    transform: scale(var(--press-scale));
+    transition-duration: 0.12s;
 }
 /* 管理员生成面板 */
 .gen-panel{display:none;}
@@ -432,6 +453,7 @@ textarea#dbEditor{width:100%;min-height:240px;padding:12px;border:1px solid var(
     70%{box-shadow:0 0 0 12px rgba(74,124,89,0);}
     100%{box-shadow:0 0 0 0 rgba(74,124,89,0);}
 }
+@keyframes spin{to{transform:rotate(360deg);}}
 @keyframes ripple{
     0%{transform:translate(-50%,-50%) scale(0);opacity:0.5;}
     100%{transform:translate(-50%,-50%) scale(4);opacity:0;}
@@ -869,10 +891,33 @@ function toast(msg){
 }
 
 function backHome(){
-    document.getElementById("homePanel").style.display="flex";
-    document.querySelectorAll(".input-area,.result-card,.gen-panel").forEach(el=>el.classList.remove("show"));
-    document.getElementById("inputId").value = "";
-    document.getElementById("pwdChangeSection").style.display = "none";
+    const panels=document.querySelectorAll(".input-area.show,.result-card.show,.gen-panel.show");
+    if(panels.length===0){
+        document.getElementById("homePanel").style.display="flex";
+        document.getElementById("inputId").value = "";
+        document.getElementById("pwdChangeSection").style.display = "none";
+        return;
+    }
+    panels.forEach(el=>{
+        el.style.transition="all 0.45s var(--spring)";
+        el.style.opacity="0";
+        el.style.transform="translateY(20px) scale(0.96)";
+    });
+    setTimeout(()=>{
+        panels.forEach(el=>{
+            el.classList.remove("show");
+            el.style.opacity="";el.style.transform="";el.style.transition="";
+        });
+        const hp=document.getElementById("homePanel");
+        hp.style.display="flex";hp.style.opacity="0";hp.style.transform="translateY(30px) scale(0.95)";
+        requestAnimationFrame(()=>{
+            hp.style.transition="all 0.55s var(--spring)";
+            hp.style.opacity="1";hp.style.transform="translateY(0) scale(1)";
+            setTimeout(()=>{hp.style.transition="";hp.style.opacity="";hp.style.transform="";},600);
+        });
+        document.getElementById("inputId").value = "";
+        document.getElementById("pwdChangeSection").style.display = "none";
+    },400);
 }
 
 // ================== 5. 管理员密码弹窗 ==================
@@ -1296,6 +1341,7 @@ function renderDbList(){
             <div class="db-record-main">
                 <div class="db-record-header">
                     <span class="db-record-id">${item.id}</span>
+                    <button onclick="copyText('${item.id}')" style="margin-left:auto;padding:3px 10px;border:1px solid var(--border-green);border-radius:6px;background:#fff;color:var(--green-main);font-size:11px;cursor:pointer;transition:all .25s var(--spring);" onmouseover="this.style.background='var(--green-main)';this.style.color='#fff';" onmouseout="this.style.background='#fff';this.style.color='var(--green-main)';">📋 复制</button>
                 </div>
                 <div class="db-record-body">
                     <span>📦 ${item.productName||'-'}</span>
@@ -1565,6 +1611,10 @@ async function submitVerify(){
     if('ontouchstart' in window || window.innerWidth<768){
         setTimeout(()=>document.getElementById("resultPanel").scrollIntoView({behavior:'smooth',block:'start'}),120);
     }
+    document.getElementById("circleIcon").className="circle";document.getElementById("circleIcon").innerHTML='<div style="width:40px;height:40px;border:3px solid var(--border-green);border-top-color:var(--green-main);border-radius:50%;animation:spin .7s linear infinite;"></div>';
+    document.getElementById("resultTitle").className="result-title";document.getElementById("resultTitle").innerText="核验中...";document.getElementById("resultTitle").style.color="var(--text-light)";
+    document.getElementById("resultDesc").innerText="正在连接官方数据库，请稍候";
+    document.getElementById("infoWrap").innerHTML='';document.getElementById("msgWrap").classList.remove("show");
     const circle = document.getElementById("circleIcon");
     const title = document.getElementById("resultTitle");
     const desc = document.getElementById("resultDesc");
@@ -1633,10 +1683,8 @@ function openScan(){
         document.getElementById("inputId").value = targetId || res;
         if(/birchfangwei\.cc\.cd/i.test(res)){
             toast("🔗 已识别白桦官方防伪链接，正在验证...");
-            setTimeout(()=>submitVerify(), 500);
-        } else {
-            submitVerify();
         }
+        submitVerify();
     },()=>{});
 }
 function closeScan(){
@@ -1663,10 +1711,8 @@ document.getElementById("imgFile").onchange = async e=>{
         document.getElementById("inputId").value = targetId || res;
         if(/birchfangwei\.cc\.cd/i.test(res)){
             toast("🔗 已识别白桦官方防伪链接，正在验证...");
-            setTimeout(()=>submitVerify(), 500);
-        } else {
-            submitVerify();
         }
+        submitVerify();
     }else toast("图片未识别到二维码");
     e.target.value = "";
 }
@@ -1848,6 +1894,11 @@ function initTouchParticles(){
     document.addEventListener('touchmove',e=>{
         for(let t of e.changedTouches) spawn(t.clientX,t.clientY,1);
     },{passive:true});
+}
+
+function copyText(text){
+    if(navigator.clipboard){navigator.clipboard.writeText(text).then(()=>toast("已复制："+text));}
+    else{const ta=document.createElement("textarea");ta.value=text;document.body.appendChild(ta);ta.select();document.execCommand("copy");document.body.removeChild(ta);toast("已复制："+text);}
 }
 </script>
 
