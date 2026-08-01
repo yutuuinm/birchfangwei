@@ -22,6 +22,10 @@
     --danger-red: #c25c5c;
     --birch-gold: #c9a96e;
     --birch-cream: #faf8f3;
+    --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+    --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+    --press-scale: 0.96;
 }
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 body{
@@ -511,14 +515,6 @@ textarea#dbEditor{width:100%;min-height:240px;padding:12px;border:1px solid var(
 .btn-scan-close{background:#40584c;}
 .btn-scan-img{background:var(--success-green);}
 .btn-scan-switch{background:var(--green-main);}
-/* 动画 */
-/* 鸿蒙7 物理动效曲线 */
-:root{
-    --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
-    --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
-    --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
-    --press-scale: 0.96;
-}
 
 /* 动画 */
 @keyframes fadeIn{
@@ -1811,6 +1807,7 @@ window.onload = async function(){
     renderRecycleBin();
     initHarmonyParticles('.method');
     initHarmonyParticles('.input-row');
+    initHarmonyParticles('.result-card');
     initTouchParticles();
     const host = location.hostname || "";
     const isOnBirchDomain = /birchfangwei/i.test(host);
@@ -1928,6 +1925,31 @@ function initHarmonyParticles(selector){
             startFade();
         });
         el.addEventListener('mouseleave',()=>{
+            if(timer)clearTimeout(timer);
+            timer=setTimeout(()=>{pts=[];timer=null;if(cvs){cancelAnimationFrame(rid);cvs.remove();cvs=null;ctx=null;}},250);
+        });
+        el.addEventListener('touchstart',e=>{
+            if(cvs)return;
+            const w=el.offsetWidth,h=el.offsetHeight;
+            cvs=document.createElement('canvas');
+            cvs.className='particle-canvas';cvs.width=w;cvs.height=h;
+            el.style.position='relative';el.appendChild(cvs);
+            ctx=cvs.getContext('2d');
+            const r=el.getBoundingClientRect();
+            const t=e.touches[0];
+            mx=t.clientX-r.left;my=t.clientY-r.top;
+            spawn(12,mx,my);draw();startFade();
+        },{passive:true});
+        el.addEventListener('touchmove',e=>{
+            if(!cvs)return;
+            const r=el.getBoundingClientRect();
+            const t=e.touches[0];
+            mx=t.clientX-r.left;my=t.clientY-r.top;
+            const now=Date.now();
+            if(now-lastT>70){lastT=now;spawn(3,mx,my);}
+            startFade();
+        },{passive:true});
+        el.addEventListener('touchend',()=>{
             if(timer)clearTimeout(timer);
             timer=setTimeout(()=>{pts=[];timer=null;if(cvs){cancelAnimationFrame(rid);cvs.remove();cvs=null;ctx=null;}},250);
         });
