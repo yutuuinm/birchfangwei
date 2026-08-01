@@ -335,8 +335,18 @@ textarea#dbEditor{width:100%;min-height:240px;padding:12px;border:1px solid var(
         <div class="db-list-wrap" id="dbListWrap">
             <div class="empty-tip">暂无记录</div>
         </div>
+        
+        <hr style="margin:24px 0;border-color:var(--border-green)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+            <h3 style="color:var(--text-dark);margin:0;">回收站</h3>
+            <button class="btn-del" style="padding:6px 12px;border-radius:8px;font-size:12px;" onclick="batchPurge()">⚠️ 清空回收站</button>
+        </div>
+        <div class="db-list-wrap" id="recycleBinWrap">
+            <div class="empty-tip">暂无已删除记录</div>
+        </div>
     </div>
 </div>
+
 
 <div class="footer">白桦官方定制防伪系统 ©2026</div>
 
@@ -422,7 +432,8 @@ const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 let LOGO_BASE64 = "";
 const DB_KEY = "antiFakeDB_v2";          // 保留但不再读写 localStorage
 const DEFAULT_PASSWORD = "030227";
-let db = { records: [], settings: { password: DEFAULT_PASSWORD } };
+let db = { records: [], recycleBin: [], settings: { password: DEFAULT_PASSWORD } };
+const RECYCLE_KEY = "antiFakeRecycle_v1";
 let scanner = null;
 let currentCamera = "environment";
 let currentQrData = null;
@@ -461,6 +472,15 @@ async function loadData(){
 // 本地不再保存，仅刷新列表
 function saveData(){
     renderDbList();
+}
+function loadRecycleBin(){
+    try{
+        const raw = localStorage.getItem(RECYCLE_KEY);
+        if(raw) db.recycleBin = JSON.parse(raw);
+    }catch(e){ db.recycleBin = []; }
+}
+function saveRecycleBin(){
+    localStorage.setItem(RECYCLE_KEY, JSON.stringify(db.recycleBin));
 }
 
 // ================== 4. 轻提示 / 返回首页 ==================
@@ -858,6 +878,11 @@ async function saveDbFromText(){
         }
         
         await loadData();
+                if(newDb.recycleBin){
+            db.recycleBin = newDb.recycleBin;
+            saveRecycleBin();
+            renderRecycleBin();
+        }
         closeDbModal();
         toast("数据库导入/覆盖成功");
     }catch(err){
@@ -913,6 +938,82 @@ function renderDbList(){
     if(sa){ sa.checked = false; }
     updateSelCount();
 }
+function renderRecycleBin(){
+    const wrap = document.getElementById("recycleBinWrap");
+    if(!db.recycleBin || db.recycleBin.length === 0){
+        wrap.innerHTML = '<div class="empty-tip">暂无已删除记录</div>';
+        return;
+    }
+    let html = `<div class="db-list-header"><h4>回收站</h4><span>共 ${db.recycleBin.length} 条</span></div>`;
+    db.recycleBin.forEach(item => {
+        html += `<div class="db-record" style="opacity:0.85;background:#fff8f8;border-color:#e8caca;">
+            <div class="db-record-main" style="margin-left:0;flex:1;min-width:0;">
+                <div class="db-record-header">
+                    <span class="db-record-id">${item.id}</span>
+                    <span style="font-size:11px;color:var(--danger-red);">已删 ${item.deletedAt||'-'}</span>
+                </div>
+                <div class="db-record-body">
+                    <span>📦 ${item.productName||'-'}</span>
+                    <span>🏷️ ${item.batchNo||'-'}</span>
+                </div>
+                <div class="db-record-actions">
+                    <button class="btn-view" onclick="restoreRecord('${item.id}')">↩️ 恢复</button>
+                    <button class="btn-del" onclick="purgeRecord('${item.id}')">🗑️ 彻底删除</button>
+                </div>
+            </div>
+        </div>`;
+    });
+    wrap.innerHTML = html;
+}
+
+async function restoreRecord(id){
+    const r = db.recycleBin.find(x => x.id === id);
+    if(!r) return toast("记录不存在");
+    if(!currentAdminPwd) return toast("管理员密码已过期");
+    const { data, error } = await supabaseClient.rpc('insert_record', {
+        p_id: r.id,
+        p_product_name: r.productName,
+        p_batch_no: r.batchNo,
+        p_message: r.message,
+        p_create_time: r.createTime,
+        p_create_timestamp: r.createTimestamp,
+        p_pwd: currentAdminPwd
+    });
+    if(error || data === false){
+        toast("恢复失败："+(error?.message||"密码无效"));
+        return;
+    }
+    db.recycleBin = db.recycleBin.filter(x => x.id !== id);
+    saveRecycleBin();
+    await loadData();
+    renderRecycleBin();
+    toast("记录已恢复");
+}
+
+async function purgeRecord(id){
+    const pwd = prompt("⚠️ 彻底删除后不可恢复，请输入管理员密码确认：");
+    if(!pwd) return;
+    if(pwd !== currentAdminPwd){
+        return toast("密码错误，删除已取消");
+    }
+    db.recycleBin = db.recycleBin.filter(x => x.id !== id);
+    saveRecycleBin();
+    renderRecycleBin();
+    toast("记录已彻底删除");
+}
+
+async function batchPurge(){
+    if(db.recycleBin.length === 0) return toast('回收站为空');
+    const pwd = prompt("⚠️ 即将清空回收站，彻底删除 "+db.recycleBin.length+" 条记录，请输入管理员密码确认：");
+    if(!pwd) return;
+    if(pwd !== currentAdminPwd){
+        return toast("密码错误，操作已取消");
+    }
+    db.recycleBin = [];
+    saveRecycleBin();
+    renderRecycleBin();
+    toast('回收站已清空');
+}
 
 function getSelectedIds(){
     return [...document.querySelectorAll('.rec-chk:checked')].map(c=>c.value);
@@ -951,7 +1052,11 @@ function updateSelCount(){
 async function batchDelete(){
     const ids = getSelectedIds();
     if(ids.length === 0) return toast('请先勾选要删除的记录');
-    if(!confirm('确定要批量删除选中的 '+ids.length+' 条记录吗？此操作不可恢复！')) return;
+    const removed = db.records.filter(r => ids.includes(r.id));
+    const first = removed[0];
+    const firstTime = first && first.createTime ? first.createTime : '未知时间';
+    const firstName = first && first.productName ? first.productName : '未命名产品';
+    if(!confirm('确定要批量删除选中的 '+ids.length+' 条记录吗？\n\n首条：'+firstTime+' 生成的 '+firstName+' 等\n\n（删除后将移至回收站）')) return;
     if(!currentAdminPwd) return toast("管理员密码已过期");
     const { data, error } = await supabaseClient.rpc('delete_records', {
         p_ids: ids,
@@ -961,12 +1066,19 @@ async function batchDelete(){
         toast("批量删除失败："+(error?.message||"密码无效"));
         return;
     }
+    removed.forEach(r => db.recycleBin.unshift({...r, deletedAt: new Date().toLocaleString()}));
+    saveRecycleBin();
+    renderRecycleBin();
     await loadData();
-    toast('已批量删除 '+ids.length+' 条');
+    toast('已批量删除 '+ids.length+' 条并移入回收站');
 }
 
+
 async function deleteRecord(id){
-    if(!confirm('确定要删除该防伪记录吗？ID: '+id)) return;
+    const r = db.records.find(item => item.id === id);
+    const timeStr = r && r.createTime ? r.createTime : '未知时间';
+    const nameStr = r && r.productName ? r.productName : '未命名产品';
+    if(!confirm('确定要删除该防伪记录吗？\n\n生成时间：'+timeStr+'\n品名：'+nameStr+'\nID：'+id+'\n\n（删除后将移至回收站，可随时恢复）')) return;
     if(!currentAdminPwd) return toast("管理员密码已过期");
     const { data, error } = await supabaseClient.rpc('delete_records', {
         p_ids: [id],
@@ -976,9 +1088,16 @@ async function deleteRecord(id){
         toast("删除失败："+(error?.message||"密码无效"));
         return;
     }
+    if(r){
+        db.recycleBin.unshift({...r, deletedAt: new Date().toLocaleString()});
+        saveRecycleBin();
+        renderRecycleBin();
+    }
     await loadData();
-    toast("记录已删除");
+    toast("记录已删除并移入回收站");
 }
+
+
 
 // ================== 13. 预览与导出（保持原样） ==================
 let currentPreviewId = null;
@@ -1177,7 +1296,8 @@ window.onload = async function(){
     const logoImg = document.querySelector('.brand-logo img');
     if(logoImg) LOGO_BASE64 = logoImg.src;
     renderDbList();
-    
+        loadRecycleBin();
+    renderRecycleBin();
     const host = location.hostname || "";
     const isOnBirchDomain = /birchfangwei/i.test(host);
     const urlParams = new URLSearchParams(location.search);
