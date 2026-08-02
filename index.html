@@ -8,6 +8,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
 :root {
     --green-main: #4a7c59;
@@ -1405,10 +1406,12 @@ function renderDbList(){
     <div class="db-toolbar">
         <label><input type="checkbox" id="selAll" onchange="toggleSelectAll(this.checked)">全选</label>
         <span class="tb-info" id="selCount">已选 0 条</span>
-        <div class="tb-actions">
-            <button class="tb-btn-export" id="btnBatchExport" onclick="batchExport()" disabled>批量导出</button>
-            <button class="tb-btn-del" id="btnBatchDel" onclick="batchDelete()" disabled>批量删除</button>
-        </div>
+            <div class="tb-actions">
+                <button class="tb-btn-export" onclick="copyAllIds()">📋 复制全部码</button>
+                <button class="tb-btn-export" onclick="exportAllCardsZip()">🗂️ 导出全部ZIP</button>
+                <button class="tb-btn-export" id="btnBatchExport" onclick="batchExport()" disabled>批量导出</button>
+                <button class="tb-btn-del" id="btnBatchDel" onclick="batchDelete()" disabled>批量删除</button>
+            </div>
     </div>`;
     list.forEach(item=>{
         const timeStr = item.createTime || '-';
@@ -2004,6 +2007,87 @@ function copyText(text){
     if(navigator.clipboard){navigator.clipboard.writeText(text).then(()=>toast("已复制："+text));}
     else{const ta=document.createElement("textarea");ta.value=text;document.body.appendChild(ta);ta.select();document.execCommand("copy");document.body.removeChild(ta);toast("已复制："+text);}
 }
+/* ---------- 一键复制仓库所有防伪码 ---------- */
+function copyAllIds(){
+    if(!db.records || db.records.length === 0) return toast("数据库为空");
+    const text = db.records.map(r => r.id).join('\n');
+    if(navigator.clipboard){
+        navigator.clipboard.writeText(text).then(()=>toast("已复制全部 "+db.records.length+" 条防伪码"));
+    }else{
+        const ta = document.createElement("textarea");
+        ta.value = text; document.body.appendChild(ta);
+        ta.select(); document.execCommand("copy");
+        document.body.removeChild(ta);
+        toast("已复制全部 "+db.records.length+" 条防伪码");
+    }
+}
+
+/* ---------- 一键导出全部卡片为 ZIP（每张单独 JPG，放在文件夹内） ---------- */
+async function exportAllCardsZip(){
+    if(!db.records || db.records.length === 0) return toast("数据库为空");
+    if(typeof JSZip === 'undefined'){
+        await new Promise((res,rej)=>{
+            const s=document.createElement('script');
+            s.src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js";
+            s.onload=res; s.onerror=()=>{toast("JSZip加载失败");rej();};
+            document.head.appendChild(s);
+        });
+    }
+    toast("正在打包 "+db.records.length+" 张卡片，请稍候...");
+    const zip=new JSZip();
+    const folder=zip.folder("白桦防伪卡片");
+    
+    let hw=document.getElementById("batchHiddenWrap");
+    if(!hw){
+        hw=document.createElement("div");
+        hw.id="batchHiddenWrap";
+        hw.style.cssText="position:fixed;top:0;left:-9999px;width:340px;z-index:-1;opacity:0;pointer-events:none;";
+        document.body.appendChild(hw);
+    }
+    
+    const qrMap={};
+    for(const r of db.records) qrMap[r.id]=buildQrDataUrl(getVerifyUrl(r.id),150);
+    
+    hw.innerHTML=`<div id="batchCardTmpl" style="width:300px;background:#fff;border:1px solid #c8d9c8;border-radius:20px;padding:24px 18px;text-align:center;font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;box-shadow:0 8px 24px rgba(62,114,89,0.10);">
+      <div style="font-size:16px;font-weight:700;color:#4a7c59;margin-bottom:14px;letter-spacing:0.5px;">白桦官方防伪验证</div>
+      <div id="btProd" style="font-size:15px;font-weight:600;color:#3d3229;margin-bottom:4px;"></div>
+      <div id="btNum" style="font-size:13px;color:#6b5d4d;margin-bottom:12px;"></div>
+      <div style="width:150px;height:150px;margin:0 auto 12px;background:#fff;border:1px solid #c8d9c8;border-radius:14px;padding:6px;display:flex;align-items:center;justify-content:center;"><img id="btQr" width="136" height="136" style="display:block;"></div>
+      <div style="font-size:12px;color:#6b5d4d;margin:6px auto 0;word-break:break-all;">防伪码：<span id="btCode" style="font-family:monospace;font-size:13px;color:#4a7c59;font-weight:600;background:#f6fbf8;padding:3px 10px;border-radius:6px;display:inline-block;margin-top:4px;"></span></div>
+      <div id="btMsg" style="display:none;margin:12px auto 0;padding:10px 12px;background:linear-gradient(135deg,#f6fbf8,#e8f5ef);border-left:3px solid #4a7c59;border-radius:8px;text-align:left;">
+        <div style="font-size:11px;font-weight:600;color:#4a7c59;margin-bottom:4px;text-align:center;">💌 商家寄语</div>
+        <div id="btMsgText" style="font-size:12px;color:#3d3229;line-height:1.5;word-break:break-word;white-space:pre-wrap;"></div>
+      </div>
+      <div style="margin:12px auto 0;font-size:11px;color:#6b5d4d;opacity:0.85;">请使用手机浏览器扫码验证正品</div>
+    </div>`;
+    
+    for(let i=0;i<db.records.length;i++){
+        const r=db.records[i];
+        document.getElementById("btProd").innerText='品名：'+(r.productName||'-');
+        document.getElementById("btNum").innerText=r.batchNo?'专属定制编号：'+r.batchNo:'';
+        document.getElementById("btCode").innerText=r.id;
+        document.getElementById("btQr").src=qrMap[r.id];
+        const msgBox=document.getElementById("btMsg");
+        if(r.message){msgBox.style.display="block";document.getElementById("btMsgText").innerText=r.message;}
+        else{msgBox.style.display="none";}
+        document.getElementById("batchCardTmpl").offsetHeight;
+        await new Promise(r=>setTimeout(r,50));
+        const canvas=await html2canvas(document.getElementById("batchCardTmpl"),{backgroundColor:"#ffffff",scale:2,useCORS:true,logging:false});
+        const base64=canvas.toDataURL("image/jpeg",0.92).split(',')[1];
+        const safeName=(r.productName||"未命名").replace(/[\\\/:*?"<>|]/g,'_');
+        folder.file(`${String(i+1).padStart(3,'0')}_${safeName}_${r.id}.jpg`,base64,{base64:true});
+    }
+    
+    const blob=await zip.generateAsync({type:"blob"});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");
+    a.href=url;
+    a.download=`白桦防伪卡片全集_${db.records.length}张_${new Date().toLocaleDateString()}.zip`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast("✅ 成功导出 "+db.records.length+" 张卡片到ZIP");
+}
+
 </script>
 
 <!-- 白桦落叶动效 -->
