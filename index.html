@@ -205,8 +205,8 @@ body::before{
     50%{transform:translateY(-4px);}
 }
 .method:hover .icon{ 
-    transform: scale(1.15) rotate(-12deg); 
-    box-shadow: inset 0 0 0 1px rgba(90,140,106,0.15), 0 12px 28px rgba(74,124,89,0.18);
+    transform: scale(1.15) rotate(12deg) translateY(-8px); 
+    box-shadow: inset 0 0 0 1px rgba(90,140,106,0.15), 0 16px 32px rgba(74,124,89,0.22);
     animation-play-state:paused;
 }
 .method .icon::after{
@@ -215,10 +215,6 @@ body::before{
     inset: 0;
     background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.6), transparent 60%);
     opacity: 0.6;
-}
-.method:hover .icon{ 
-    transform: scale(1.12) rotate(-8deg); 
-    box-shadow: inset 0 0 0 1px rgba(90,140,106,0.12), 0 8px 20px rgba(74,124,89,0.15);
 }
 .method h3{font-size:17px;margin-bottom:6px;color: var(--text-dark); transition: color 0.3s;}
 .method p{font-size:13px;color:var(--text-light);line-height:1.6;}
@@ -259,7 +255,8 @@ body::before{
     box-shadow: 0 0 0 4px rgba(74,124,89,0.1), 0 0 20px rgba(74,124,89,0.08), inset 0 2px 4px rgba(0,0,0,0.02);
     transform: translateY(-1px);
 }
-.input-row .ico{position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:18px;z-index:2;}
+.input-row .ico{position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:18px;z-index:2;transition:transform 0.45s var(--spring);}
+.input-row:hover .ico{transform:translateY(calc(-50% - 8px)) scale(1.25);filter:drop-shadow(0 6px 8px rgba(74,124,89,0.25));}
 .btn{
     width:100%;padding:16px;border:none;border-radius:16px;font-size:16px;font-weight:600;color:#fff;
     background:linear-gradient(135deg,var(--green-main),var(--green-light));
@@ -1870,7 +1867,7 @@ function initHarmonyParticles(selector){
                     y:fromY+(Math.random()-.5)*12,
                     vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-0.4,
                     s:Math.random()*1.2+0.4,
-                    life:1.0,decay:0.025+Math.random()*0.02,
+                    life:1.0,decay:0.012+Math.random()*0.008,
                 hue:[38,22,195,45][Math.floor(Math.random()*4)],
                 sat:[78,72,45,60][Math.floor(Math.random()*4)],
                 light:[68,72,78,88][Math.floor(Math.random()*4)]
@@ -1903,7 +1900,7 @@ function initHarmonyParticles(selector){
         };
         const startFade=()=>{
             if(timer)clearTimeout(timer);
-            timer=setTimeout(()=>{timer=null;},900);
+            timer=setTimeout(()=>{timer=null;},2500);
         };
         el.addEventListener('mouseenter',e=>{
             if(cvs)return;
@@ -1914,19 +1911,19 @@ function initHarmonyParticles(selector){
             ctx=cvs.getContext('2d');
             const r=el.getBoundingClientRect();
             mx=e.clientX-r.left;my=e.clientY-r.top;
-            spawn(12,mx,my);draw();startFade();
+            spawn(28,mx,my);draw();startFade();
         });
         el.addEventListener('mousemove',e=>{
             if(!cvs)return;
             const r=el.getBoundingClientRect();
             mx=e.clientX-r.left;my=e.clientY-r.top;
             const now=Date.now();
-            if(now-lastT>70){lastT=now;spawn(3,mx,my);}
+            if(now-lastT>50){lastT=now;spawn(10,mx,my);}
             startFade();
         });
         el.addEventListener('mouseleave',()=>{
             if(timer)clearTimeout(timer);
-            timer=setTimeout(()=>{pts=[];timer=null;if(cvs){cancelAnimationFrame(rid);cvs.remove();cvs=null;ctx=null;}},250);
+            timer=setTimeout(()=>{pts=[];timer=null;if(cvs){cancelAnimationFrame(rid);cvs.remove();cvs=null;ctx=null;}},1500);
         });
         el.addEventListener('touchstart',e=>{
             if(cvs)return;
@@ -1938,7 +1935,7 @@ function initHarmonyParticles(selector){
             const r=el.getBoundingClientRect();
             const t=e.touches[0];
             mx=t.clientX-r.left;my=t.clientY-r.top;
-            spawn(12,mx,my);draw();startFade();
+            spawn(28,mx,my);draw();startFade();
         },{passive:true});
         el.addEventListener('touchmove',e=>{
             if(!cvs)return;
@@ -1946,12 +1943,12 @@ function initHarmonyParticles(selector){
             const t=e.touches[0];
             mx=t.clientX-r.left;my=t.clientY-r.top;
             const now=Date.now();
-            if(now-lastT>70){lastT=now;spawn(3,mx,my);}
+            if(now-lastT>50){lastT=now;spawn(10,mx,my);}
             startFade();
         },{passive:true});
         el.addEventListener('touchend',()=>{
             if(timer)clearTimeout(timer);
-            timer=setTimeout(()=>{pts=[];timer=null;if(cvs){cancelAnimationFrame(rid);cvs.remove();cvs=null;ctx=null;}},250);
+            timer=setTimeout(()=>{pts=[];timer=null;if(cvs){cancelAnimationFrame(rid);cvs.remove();cvs=null;ctx=null;}},1500);
         });
     });
 }
@@ -1991,15 +1988,15 @@ function initTouchParticles(){
             const c=pal[Math.floor(Math.random()*pal.length)];
             const a=Math.random()*Math.PI*2;
             const sp=Math.random()*1.5+0.3;
-            pts.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-0.6,s:Math.random()*1.4+0.4,life:1,decay:0.03+Math.random()*0.02,hue:c.h,sat:c.s,light:c.l});
+            pts.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-0.6,s:Math.random()*1.4+0.4,life:1,decay:0.015+Math.random()*0.01,hue:c.h,sat:c.s,light:c.l});
         }
         if(!rid||pts.length<=n){rid=requestAnimationFrame(draw);}
     };
     document.addEventListener('touchstart',e=>{
-        for(let t of e.changedTouches) spawn(t.clientX,t.clientY,4);
+        for(let t of e.changedTouches) spawn(t.clientX,t.clientY,14);
     },{passive:true});
     document.addEventListener('touchmove',e=>{
-        for(let t of e.changedTouches) spawn(t.clientX,t.clientY,1);
+        for(let t of e.changedTouches) spawn(t.clientX,t.clientY,7);
     },{passive:true});
 }
 
