@@ -760,17 +760,16 @@ textarea#dbEditor{width:100%;min-height:240px;padding:12px;border:1px solid var(
         <button class="btn" onclick="createSingleCode()">生成防伪二维码</button>
         <div class="qr-view" id="qrShow">
             <div class="export-stage">
-                <div class="export-card" id="exportCard">
-                    <div class="export-title" id="expTitle">白桦官方防伪验证</div>
-<div class="export-product" id="expProduct">品名：-</div>
-<div class="export-num" id="expNum">专属定制编号：-</div>
-                    <div class="export-qr" id="expQrWrap"></div>
+                                <div class="export-card" id="exportCard">
+                    <div class="export-product" id="expProduct">品名：-</div>
+                    <div class="export-num" id="expNum">专属定制编号：-</div>
                     <div class="export-code">防伪码：<span id="expCode">-</span></div>
+                    <div class="export-qr" id="expQrWrap"></div>
                     <div class="export-msg" id="expMsgWrap" style="display:none;">
                         <div class="export-msg-label">💌 商家寄语</div>
                         <div class="export-msg-text" id="expMsgText"></div>
                     </div>
-                    <div class="export-tip">请使用手机浏览器扫码验证正品</div>
+                    <div class="export-tip">手机浏览器扫码核验正品</div>
                 </div>
             </div>
             <div class="btn-row">
@@ -871,16 +870,15 @@ textarea#dbEditor{width:100%;min-height:240px;padding:12px;border:1px solid var(
         <h3 style="margin-bottom:12px;color:var(--text-dark);">防伪卡片预览</h3>
         <div class="preview-stage">
             <div class="preview-card" id="previewCard">
-                <div class="preview-title" id="prevTitle">白桦官方防伪验证</div>
-<div class="preview-product" id="prevProduct">品名：-</div>
-<div class="preview-num" id="prevNum">专属定制编号：-</div>
-                <div class="preview-qr" id="prevQrWrap"></div>
+                <div class="preview-product" id="prevProduct">品名：-</div>
+                <div class="preview-num" id="prevNum">专属定制编号：-</div>
                 <div class="preview-code">防伪码：<span id="prevCode">-</span></div>
+                <div class="preview-qr" id="prevQrWrap"></div>
                 <div class="preview-msg" id="prevMsgWrap" style="display:none;">
                     <div class="preview-msg-label">💌 商家寄语</div>
                     <div class="preview-msg-text" id="prevMsgText"></div>
                 </div>
-                <div class="preview-tip">请使用手机浏览器扫码验证正品</div>
+                <div class="preview-tip">手机浏览器扫码核验正品</div>
             </div>
         </div>
         <div style="display:flex;gap:10px;margin-top:14px;">
@@ -1157,7 +1155,6 @@ if(data === false){
 
     const wrap = document.getElementById("qrShow");
     wrap.classList.add("show");
-     document.getElementById("expTitle").innerText = '白桦官方防伪验证';
     const showName = document.getElementById("chkExpName").checked;
     const showBatch = document.getElementById("chkExpBatch").checked;
     const showMsg = document.getElementById("chkExpMsg").checked;
@@ -1306,15 +1303,15 @@ function buildExportHtml(records){
     const cards = records.map((r, idx)=>{
         const url = (typeof getVerifyUrl === 'function') ? getVerifyUrl(r.id) : r.id;
         const qrUrl = buildQrDataUrl(url, 150);
-        const title = buildVerifyTitle(r);
         return `
         <div class="card-cell">
             <div class="card-num">No.${String(idx+1).padStart(3,'0')}</div>
-            <div class="card-title">${escapeHtml(title)}</div>
+            <div style="font-size:22.5px;font-weight:normal;color:var(--text-dark);margin:0 auto 2px;text-align:center;width:100%;">${escapeHtml(r.productName || '白桦定制')}</div>
+            <div style="font-size:19.5px;color:var(--text-light);background:transparent;padding:0;margin:0 auto 6px;text-align:center;letter-spacing:1px;">${r.batchNo ? '专属定制编号：'+escapeHtml(r.batchNo) : ''}</div>
+            <div style="font-size:18px;color:var(--text-light);margin:3px auto 0;text-align:center;word-break:break-all;width:100%;"><span style="font-family:monospace;font-size:19.5px;color:var(--green-main);font-weight:normal;background:#f6fbf8;padding:3px 10px;border-radius:6px;display:inline-block;margin-top:4px;">${escapeHtml(r.id)}</span></div>
             <div class="card-qr" style="position:relative;display:inline-block;"><img src="${qrUrl}" alt="QR" style="display:block;"></div>
-            <div class="card-code">防伪码：<span>${escapeHtml(r.id)}</span></div>
             ${r.message ? `<div class="card-msg"><div class="card-msg-label">💌 商家寄语</div><div class="card-msg-text">${escapeHtml(r.message)}</div></div>` : ''}
-            <div class="card-tip">请使用手机浏览器扫码验证正品</div>
+            <div class="card-tip">手机浏览器扫码核验正品</div>
         </div>`;
     }).join('');
 
@@ -1638,7 +1635,6 @@ function previewRecord(id){
     const r = db.records.find(item=>item.id === id);
     if(!r) return toast("记录不存在");
     currentPreviewId = id;
-    document.getElementById("prevTitle").innerText = '白桦官方防伪验证';
     document.getElementById("prevCode").innerText = r.id;
     document.getElementById("prevProduct").innerText = '品名：' + (r.productName || '-');
     document.getElementById("prevNum").innerText = r.batchNo ? '专属定制编号：' + r.batchNo : '';
@@ -2094,16 +2090,15 @@ async function exportAllCardsZip(){
     for(const r of records) qrMap[r.id]=buildQrDataUrl(getVerifyUrl(r.id),150);
     
     hw.innerHTML=`<div id="batchCardTmpl" style="width:300px;background:#fff;border:1px solid #c8d9c8;border-radius:20px;padding:12px 9px;text-align:center;font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;box-shadow:0 8px 24px rgba(62,114,89,0.10);">
-      <div style="font-size:32px;font-weight:700;color:#4a7c59;margin-bottom:7px;letter-spacing:0.5px;;">白桦官方防伪验证</div>
       <div id="btProd" style="font-size:30px;font-weight:600;color:#3d3229;margin-bottom:2px;"></div>
       <div id="btNum" style="font-size:26px;color:#6b5d4d;margin-bottom:6px;"></div>
+      <div style="font-size:24px;color:#6b5d4d;margin:3px auto 6px;word-break:break-all;">防伪码：<span id="btCode" style="font-family:monospace;font-size:26px;color:#4a7c59;font-weight:600;background:#f6fbf8;padding:3px 10px;border-radius:6px;display:inline-block;margin-top:4px;"></span></div>
       <div style="width:150px;height:150px;margin:0 auto 6px;background:#fff;border:1px solid #c8d9c8;border-radius:14px;padding:6px;display:flex;align-items:center;justify-content:center;"><img id="btQr" width="136" height="136" style="display:block;"></div>
-      <div style="font-size:24px;color:#6b5d4d;margin:3px auto 0;word-break:break-all;">防伪码：<span id="btCode" style="font-family:monospace;font-size:26px;color:#4a7c59;font-weight:600;background:#f6fbf8;padding:3px 10px;border-radius:6px;display:inline-block;margin-top:4px;"></span></div>
       <div id="btMsg" style="display:none;margin:6px auto 0;padding:5px 6px;background:linear-gradient(135deg,#f6fbf8,#e8f5ef);border-radius:8px;text-align:left;">
         <div style="font-size:22px;font-weight:600;color:#4a7c59;margin-bottom:2px;text-align:center;;">💌 商家寄语</div>
         <div id="btMsgText" style="font-size:24px;color:#3d3229;line-height:1.5;word-break:break-word;white-space:pre-wrap;"></div>
       </div>
-      <div style="margin:6px auto 0;font-size:22px;color:#6b5d4d;opacity:0.85;">请使用手机浏览器扫码验证正品</div>
+      <div style="margin:6px auto 0;font-size:22px;color:#6b5d4d;opacity:0.85;">手机浏览器扫码核验正品</div>
     </div>`;
     
     for(let i=0;i<records.length;i++){
