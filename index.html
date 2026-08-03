@@ -557,7 +557,7 @@ textarea#dbEditor{width:100%;min-height:240px;padding:12px;border:1px solid var(
 .db-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 12px;background:#fff;border:1px solid var(--border-green);border-radius:12px;margin-bottom:12px;}
 .db-toolbar label{font-size:13px;color:var(--text-dark);display:flex;align-items:center;gap:6px;cursor:pointer;}
 .db-toolbar input[type=checkbox]{width:18px;height:18px;accent-color:var(--green-main);cursor:pointer;}
-.db-toolbar .tb-info{font-size:12px;color:var(--text-light);margin-left:auto;}
+.db-toolbar .tb-info{font-size:12px;color:var(--green-main);font-weight:600;margin-left:auto;background:#f6fbf8;padding:4px 12px;border-radius:8px;border:1px solid var(--border-green);}
 .db-toolbar .tb-actions{display:flex;gap:6px;}
 .db-toolbar .tb-actions button{padding:7px 12px;border-radius:8px;font-size:12px;cursor:pointer;border:1px solid transparent;}
 /* 批量删除与单条删除使用同一背景色 */
@@ -613,7 +613,7 @@ textarea#dbEditor{width:100%;min-height:240px;padding:12px;border:1px solid var(
 .preview-stage{padding:8px;background:linear-gradient(135deg,#f6fbf8,#e8f5ef);border-radius:18px;}
 .preview-card{
     width:100%;max-width:300px;margin:0 auto;background:#fff;border:1px solid var(--border-green);
-    border-radius:20px;padding:24px 18px;text-align:center;
+    border-radius:20px;padding:12px 9px;text-align:center;
     box-shadow:0 8px 24px rgba(62,114,89,0.10), 0 0 0 1px rgba(255,255,255,0.5);
     display:flex;flex-direction:column;align-items:center;
     transition: all 0.45s var(--spring);
@@ -622,23 +622,21 @@ textarea#dbEditor{width:100%;min-height:240px;padding:12px;border:1px solid var(
     transform: translateY(-4px);
     box-shadow: 0 16px 40px rgba(62,114,89,0.14), 0 0 0 1px rgba(255,255,255,0.6);
 }
-.preview-num{display:block;font-size:13px;color:var(--text-light);background:transparent;padding:0;margin:0 auto 12px;text-align:center;letter-spacing:1px;}
-.preview-title{font-size:15px;font-weight:600;color:var(--text-dark);margin:0 auto 12px;line-height:1.5;text-align:center;width:100%;}
-.preview-product{font-size:15px;font-weight:600;color:var(--text-dark);margin:0 auto 4px;text-align:center;width:100%;}
-.preview-qr{display:flex;justify-content:center;align-items:center;margin:0 auto 12px;width:150px;height:150px;background:#fff;border:1px solid var(--border-green);border-radius:14px;padding:6px;}
-.preview-qr img,.preview-qr canvas{width:100%;height:100%;display:block;margin:0 auto;}
-.preview-code{font-size:12px;color:var(--text-light);margin:6px auto 0;text-align:center;word-break:break-all;width:100%;}
-.preview-code span{font-family:monospace;font-size:13px;color:var(--green-main);font-weight:600;background:#f6fbf8;padding:3px 10px;border-radius:6px;display:inline-block;margin-top:4px;}
-.preview-msg{margin:12px auto 0;padding:10px 12px;background:linear-gradient(135deg,#f6fbf8,#e8f5ef);border-left:3px solid var(--green-main);border-radius:8px;text-align:left;width:100%;}
-.preview-msg-label{font-size:11px;font-weight:600;color:var(--green-main);margin-bottom:4px;text-align:center;}
-.preview-msg-text{font-size:12px;color:var(--text-dark);line-height:1.5;word-break:break-word;white-space:pre-wrap;text-align:left;}
-.preview-tip{margin:12px auto 0;font-size:11px;color:var(--text-light);opacity:0.85;text-align:center;width:100%;}
+.preview-num{display:block;font-size:26px;color:var(--text-light);background:transparent;padding:0;margin:0 auto 6px;text-align:center;letter-spacing:1px;}
+.preview-title{font-size:45px;font-weight:normal;color:var(--text-dark);margin:0 auto 6px;line-height:1.5;text-align:center;width:100%;}
+.preview-product{font-size:22.5px;font-weight:normal;color:var(--text-dark);margin:0 auto 2px;text-align:center;width:100%;}
+.preview-num{display:block;font-size:19.5px;color:var(--text-light);background:transparent;padding:0;margin:0 auto 6px;text-align:center;letter-spacing:1px;}
+.preview-code{font-size:18px;color:var(--text-light);margin:3px auto 0;text-align:center;word-break:break-all;width:100%;}
+.preview-code span{font-family:monospace;font-size:19.5px;color:var(--green-main);font-weight:normal;background:#f6fbf8;padding:3px 10px;border-radius:6px;display:inline-block;margin-top:4px;}
+.preview-msg-label{font-size:16.5px;font-weight:normal;color:var(--green-main);margin-bottom:2px;text-align:center;}
+.preview-msg-text{font-size:18px;color:var(--text-dark);line-height:1.5;word-break:break-word;white-space:pre-wrap;text-align:left;}
+.preview-tip{margin:6px auto 0;font-size:16.5px;color:var(--text-light);opacity:0.85;text-align:center;width:100%;}
 .preview-divider{width:1px;height:18px;background:var(--text-light);margin:14px auto 0;opacity:0.3;}
 /* 生成后的卡片预览（与详情预览共用样式） */
 .export-stage{padding:8px;background:linear-gradient(135deg,#f6fbf8,#e8f5ef);border-radius:18px;}
 .export-card{
     width:100%;max-width:300px;margin:0 auto;background:#fff;border:1px solid var(--border-green);
-    border-radius:20px;padding:24px 18px;text-align:center;
+    border-radius:20px;padding:12px 9px;text-align:center;
     box-shadow:0 8px 24px rgba(62,114,89,0.10), 0 0 0 1px rgba(255,255,255,0.5);
     display:flex;flex-direction:column;align-items:center;
     transition: all 0.45s var(--spring);
@@ -647,17 +645,15 @@ textarea#dbEditor{width:100%;min-height:240px;padding:12px;border:1px solid var(
     transform: translateY(-4px);
     box-shadow: 0 16px 40px rgba(62,114,89,0.14), 0 0 0 1px rgba(255,255,255,0.6);
 }
-.export-num{display:block;font-size:13px;color:var(--text-light);background:transparent;padding:0;margin:0 auto 12px;text-align:center;letter-spacing:1px;}
-.export-title{font-size:16px;font-weight:700;color:var(--green-main);margin:0 auto 14px;line-height:1.5;text-align:center;width:100%;letter-spacing:0.5px;}
-.export-product{font-size:15px;font-weight:600;color:var(--text-dark);margin:0 auto 4px;text-align:center;width:100%;}
-.export-qr{display:flex;justify-content:center;align-items:center;margin:0 auto 14px;width:150px;height:150px;background:#fff;border:1px solid var(--border-green);border-radius:14px;padding:6px;}
-.export-qr img,.export-qr canvas{width:100%;height:100%;display:block;margin:0 auto;}
-.export-code{font-size:12px;color:var(--text-light);margin:6px auto 0;text-align:center;word-break:break-all;width:100%;}
-.export-code span{font-family:monospace;font-size:13px;color:var(--green-main);font-weight:600;background:#f6fbf8;padding:3px 10px;border-radius:6px;display:inline-block;margin-top:4px;}
-.export-msg{margin:12px auto 0;padding:10px 12px;background:linear-gradient(135deg,#f6fbf8,#e8f5ef);border-left:3px solid var(--green-main);border-radius:8px;text-align:left;width:100%;}
-.export-msg-label{font-size:11px;font-weight:600;color:var(--green-main);margin-bottom:4px;text-align:center;}
-.export-msg-text{font-size:12px;color:var(--text-dark);line-height:1.5;word-break:break-word;white-space:pre-wrap;text-align:left;}
-.export-tip{margin:12px auto 0;font-size:11px;color:var(--text-light);opacity:0.85;text-align:center;width:100%;}
+.export-num{display:block;font-size:26px;color:var(--text-light);background:transparent;padding:0;margin:0 auto 6px;text-align:center;letter-spacing:1px;}
+.export-title{font-size:24px;font-weight:normal;color:var(--green-main);margin:0 auto 14px;line-height:1.5;text-align:center;width:100%;letter-spacing:0.5px;}
+.export-product{font-size:22.5px;font-weight:normal;color:var(--text-dark);margin:0 auto 2px;text-align:center;width:100%;}
+.export-num{display:block;font-size:19.5px;color:var(--text-light);background:transparent;padding:0;margin:0 auto 6px;text-align:center;letter-spacing:1px;}
+.export-code{font-size:18px;color:var(--text-light);margin:3px auto 0;text-align:center;word-break:break-all;width:100%;}
+.export-code span{font-family:monospace;font-size:19.5px;color:var(--green-main);font-weight:normal;background:#f6fbf8;padding:3px 10px;border-radius:6px;display:inline-block;margin-top:4px;}
+.export-msg-label{font-size:16.5px;font-weight:normal;color:var(--green-main);margin-bottom:2px;text-align:center;}
+.export-msg-text{font-size:18px;color:var(--text-dark);line-height:1.5;word-break:break-word;white-space:pre-wrap;text-align:left;}
+.export-tip{margin:6px auto 0;font-size:16.5px;color:var(--text-light);opacity:0.85;text-align:center;width:100%;}
 .particle-canvas{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;border-radius:20px;}
 </style>
 </head>
@@ -735,18 +731,32 @@ textarea#dbEditor{width:100%;min-height:240px;padding:12px;border:1px solid var(
         <button class="back-btn" onclick="backHome()">← 返回验证首页</button>
         <h3 style="margin-bottom:16px;color:var(--text-dark)">单个防伪码生成</h3>
         <div class="form-item">
-            <label>产品名称 *</label>
-            <input id="genName" placeholder="白桦定制礼盒">
-        </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <label>产品名称 *</label>
+        <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--text-light);cursor:pointer;font-weight:400;">
+            <input type="checkbox" id="chkExpName" checked style="width:15px;height:15px;accent-color:var(--green-main);cursor:pointer;"> 导出
+        </label>
+    </div>
+    <input id="genName" placeholder="白桦定制礼盒">
+</div>
        <div class="form-item">
-    <label>专属定制编号</label>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <label>专属定制编号</label>
+        <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--text-light);cursor:pointer;font-weight:400;">
+            <input type="checkbox" id="chkExpBatch" checked style="width:15px;height:15px;accent-color:var(--green-main);cursor:pointer;"> 导出
+        </label>
+    </div>
     <input id="genBatch" placeholder="202608-A01">
 </div>
 <div class="form-item">
-
-            <label>商家寄语</label>
-            <textarea id="genMsg"></textarea>
-        </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <label>商家寄语</label>
+        <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--text-light);cursor:pointer;font-weight:400;">
+            <input type="checkbox" id="chkExpMsg" checked style="width:15px;height:15px;accent-color:var(--green-main);cursor:pointer;"> 导出
+        </label>
+    </div>
+    <textarea id="genMsg"></textarea>
+</div>
         <button class="btn" onclick="createSingleCode()">生成防伪二维码</button>
         <div class="qr-view" id="qrShow">
             <div class="export-stage">
@@ -1147,14 +1157,21 @@ if(data === false){
 
     const wrap = document.getElementById("qrShow");
     wrap.classList.add("show");
-    document.getElementById("expTitle").innerText = '白桦官方防伪验证';
-    document.getElementById("expProduct").innerText = '品名：' + name;
-    document.getElementById("expNum").innerText = batch ? '专属定制编号：' + batch : '';
+     document.getElementById("expTitle").innerText = '白桦官方防伪验证';
+    const showName = document.getElementById("chkExpName").checked;
+    const showBatch = document.getElementById("chkExpBatch").checked;
+    const showMsg = document.getElementById("chkExpMsg").checked;
+    
+    const expProduct = document.getElementById("expProduct");
+    expProduct.innerText = '品名：' + name;
+    expProduct.style.display = showName ? "block" : "none";
+    const expNum = document.getElementById("expNum");
+    expNum.innerText = batch ? '专属定制编号：' + batch : '';
+    expNum.style.display = (showBatch && batch) ? "block" : "none";
     document.getElementById("expCode").innerText = record.id;
-
     const msgWrap = document.getElementById("expMsgWrap");
     const msgText = document.getElementById("expMsgText");
-    if(record.message){
+    if(record.message && showMsg){
         msgWrap.style.display = "block";
         msgText.innerText = record.message;
     } else {
@@ -1213,10 +1230,22 @@ async function batchCreateCode(){
 // ================== 10. 导出卡片 / JSON（保持原样） ==================
 function saveQrImg(){
     if(!currentQrData) return toast("请先生成防伪二维码");
+    const r = currentQrData;
+    const showName = document.getElementById("chkExpName").checked;
+    const showBatch = document.getElementById("chkExpBatch").checked;
+    const showMsg = document.getElementById("chkExpMsg").checked;
+    document.getElementById("expProduct").style.display = showName ? "block" : "none";
+    document.getElementById("expNum").style.display = (showBatch && r.batchNo) ? "block" : "none";
+    const msgWrap = document.getElementById("expMsgWrap");
+    if(r.message && showMsg){
+        msgWrap.style.display = "block";
+        document.getElementById("expMsgText").innerText = r.message;
+    } else {
+        msgWrap.style.display = "none";
+    }
     const card = document.getElementById("exportCard");
     html2canvas(card, { background: "#ffffff", scale: 2, useCORS: true }).then(canvas=>{
         const a = document.createElement("a");
-        const r = currentQrData;
         const safeName = (r && r.productName) ? r.productName.replace(/[\\\/:*?"<>|]/g,'_') : "白桦防伪";
         const safeBatch = (r && r.batchNo) ? r.batchNo.replace(/[\\\/:*?"<>|]/g,'_') : "";
         const batchPart = safeBatch ? `_${safeBatch}` : "";
@@ -1303,15 +1332,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei
 .grid{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:20px;justify-items:center;justify-content:center;}
 .card-cell{width:100%;max-width:280px;background:#fff;border:1px solid var(--border-green);border-radius:20px;padding:24px 20px;text-align:center;box-shadow:0 8px 22px rgba(62,114,89,0.12);margin:0 auto;display:flex;flex-direction:column;align-items:center;}
 .card-num{display:inline-block;font-size:11px;color:var(--text-light);background:#f6fbf8;padding:3px 12px;border-radius:999px;margin:0 auto 12px;letter-spacing:1.5px;}
-.card-title{font-size:15px;font-weight:600;color:var(--text-dark);margin:0 auto 14px;line-height:1.5;text-align:center;width:100%;}
-.card-qr{display:flex;justify-content:center;align-items:center;margin:0 auto 14px;width:150px;height:150px;background:#fff;border:1px solid var(--border-green);border-radius:14px;padding:8px;}
-.card-qr img{width:100%;height:100%;display:block;margin:0 auto;}
-.card-code{font-size:12px;color:var(--text-light);margin:6px auto 0;text-align:center;word-break:break-all;width:100%;}
-.card-code span{font-family:monospace;font-size:13px;color:var(--green-main);font-weight:600;background:#f6fbf8;padding:3px 10px;border-radius:6px;display:inline-block;margin-top:4px;}
-.card-msg{margin:14px auto 0;padding:12px 14px;background:linear-gradient(135deg,#f6fbf8,#e8f5ef);border-left:3px solid var(--green-main);border-radius:10px;text-align:left;width:100%;}
-.card-msg-label{font-size:11px;font-weight:600;color:var(--green-main);margin-bottom:6px;text-align:center;letter-spacing:0.5px;}
-.card-msg-text{font-size:12.5px;color:var(--text-dark);line-height:1.6;word-break:break-word;white-space:pre-wrap;text-align:left;}
-.card-tip{margin:14px auto 0;font-size:11px;color:var(--text-light);opacity:0.85;text-align:center;width:100%;}
+.card-title{font-size:22.5px;font-weight:normal;color:var(--text-dark);margin:0 auto 14px;line-height:1.5;text-align:center;width:100%;}
+.card-num{display:inline-block;font-size:8.25px;color:var(--text-light);background:#f6fbf8;padding:3px 12px;border-radius:999px;margin:0 auto 12px;letter-spacing:1.5px;}
+.card-code{font-size:9px;color:var(--text-light);margin:6px auto 0;text-align:center;word-break:break-all;width:100%;}
+.card-code span{font-family:monospace;font-size:9.75px;color:var(--green-main);font-weight:normal;background:#f6fbf8;padding:3px 10px;border-radius:6px;display:inline-block;margin-top:4px;}
+.card-msg-label{font-size:8.25px;font-weight:normal;color:var(--green-main);margin-bottom:6px;text-align:center;letter-spacing:0.5px;}
+.card-msg-text{font-size:9.375px;color:var(--text-dark);line-height:1.6;word-break:break-word;white-space:pre-wrap;text-align:left;}
+.card-tip{margin:14px auto 0;font-size:8.25px;color:var(--text-light);opacity:0.85;text-align:center;width:100%;}
 </style></head><body>
 <div class="page-header">
     <h1>白桦官方定制防伪证书</h1>
@@ -1408,7 +1435,8 @@ function renderDbList(){
         <span class="tb-info" id="selCount">已选 0 条</span>
             <div class="tb-actions">
                 <button class="tb-btn-export" onclick="copyAllIds()">📋 复制全部码</button>
-                <button class="tb-btn-export" onclick="exportAllCardsZip()">🗂️ 导出全部ZIP</button>
+                <button class="tb-btn-export" onclick="copySelectedIds()">📋 复制选中码</button>
+                <button class="tb-btn-export" onclick="exportAllCardsZip()">🗂️ 导出选中ZIP</button>
                 <button class="tb-btn-export" id="btnBatchExport" onclick="batchExport()" disabled>批量导出</button>
                 <button class="tb-btn-del" id="btnBatchDel" onclick="batchDelete()" disabled>批量删除</button>
             </div>
@@ -2021,10 +2049,27 @@ function copyAllIds(){
         toast("已复制全部 "+db.records.length+" 条防伪码");
     }
 }
+function copySelectedIds(){
+    const ids = getSelectedIds();
+    if(ids.length === 0) return toast("请先勾选要复制的记录");
+    const text = ids.join('\n');
+    if(navigator.clipboard){
+        navigator.clipboard.writeText(text).then(()=>toast("已复制选中 "+ids.length+" 条防伪码"));
+    }else{
+        const ta = document.createElement("textarea");
+        ta.value = text; document.body.appendChild(ta);
+        ta.select(); document.execCommand("copy");
+        document.body.removeChild(ta);
+        toast("已复制选中 "+ids.length+" 条防伪码");
+    }
+}
 
 /* ---------- 一键导出全部卡片为 ZIP（每张单独 JPG，放在文件夹内） ---------- */
 async function exportAllCardsZip(){
-    if(!db.records || db.records.length === 0) return toast("数据库为空");
+    const ids = getSelectedIds();
+    if(ids.length === 0) return toast("请先勾选要导出的记录");
+    const records = db.records.filter(r => ids.includes(r.id));
+    if(records.length === 0) return toast("选中的记录不存在");
     if(typeof JSZip === 'undefined'){
         await new Promise((res,rej)=>{
             const s=document.createElement('script');
@@ -2033,7 +2078,7 @@ async function exportAllCardsZip(){
             document.head.appendChild(s);
         });
     }
-    toast("正在打包 "+db.records.length+" 张卡片，请稍候...");
+    toast("正在打包 "+records.length+" 张卡片，请稍候...");
     const zip=new JSZip();
     const folder=zip.folder("白桦防伪卡片");
     
@@ -2046,23 +2091,23 @@ async function exportAllCardsZip(){
     }
     
     const qrMap={};
-    for(const r of db.records) qrMap[r.id]=buildQrDataUrl(getVerifyUrl(r.id),150);
+    for(const r of records) qrMap[r.id]=buildQrDataUrl(getVerifyUrl(r.id),150);
     
-    hw.innerHTML=`<div id="batchCardTmpl" style="width:300px;background:#fff;border:1px solid #c8d9c8;border-radius:20px;padding:24px 18px;text-align:center;font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;box-shadow:0 8px 24px rgba(62,114,89,0.10);">
-      <div style="font-size:16px;font-weight:700;color:#4a7c59;margin-bottom:14px;letter-spacing:0.5px;">白桦官方防伪验证</div>
-      <div id="btProd" style="font-size:15px;font-weight:600;color:#3d3229;margin-bottom:4px;"></div>
-      <div id="btNum" style="font-size:13px;color:#6b5d4d;margin-bottom:12px;"></div>
-      <div style="width:150px;height:150px;margin:0 auto 12px;background:#fff;border:1px solid #c8d9c8;border-radius:14px;padding:6px;display:flex;align-items:center;justify-content:center;"><img id="btQr" width="136" height="136" style="display:block;"></div>
-      <div style="font-size:12px;color:#6b5d4d;margin:6px auto 0;word-break:break-all;">防伪码：<span id="btCode" style="font-family:monospace;font-size:13px;color:#4a7c59;font-weight:600;background:#f6fbf8;padding:3px 10px;border-radius:6px;display:inline-block;margin-top:4px;"></span></div>
-      <div id="btMsg" style="display:none;margin:12px auto 0;padding:10px 12px;background:linear-gradient(135deg,#f6fbf8,#e8f5ef);border-left:3px solid #4a7c59;border-radius:8px;text-align:left;">
-        <div style="font-size:11px;font-weight:600;color:#4a7c59;margin-bottom:4px;text-align:center;">💌 商家寄语</div>
-        <div id="btMsgText" style="font-size:12px;color:#3d3229;line-height:1.5;word-break:break-word;white-space:pre-wrap;"></div>
+    hw.innerHTML=`<div id="batchCardTmpl" style="width:300px;background:#fff;border:1px solid #c8d9c8;border-radius:20px;padding:12px 9px;text-align:center;font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;box-shadow:0 8px 24px rgba(62,114,89,0.10);">
+      <div style="font-size:32px;font-weight:700;color:#4a7c59;margin-bottom:7px;letter-spacing:0.5px;;">白桦官方防伪验证</div>
+      <div id="btProd" style="font-size:30px;font-weight:600;color:#3d3229;margin-bottom:2px;"></div>
+      <div id="btNum" style="font-size:26px;color:#6b5d4d;margin-bottom:6px;"></div>
+      <div style="width:150px;height:150px;margin:0 auto 6px;background:#fff;border:1px solid #c8d9c8;border-radius:14px;padding:6px;display:flex;align-items:center;justify-content:center;"><img id="btQr" width="136" height="136" style="display:block;"></div>
+      <div style="font-size:24px;color:#6b5d4d;margin:3px auto 0;word-break:break-all;">防伪码：<span id="btCode" style="font-family:monospace;font-size:26px;color:#4a7c59;font-weight:600;background:#f6fbf8;padding:3px 10px;border-radius:6px;display:inline-block;margin-top:4px;"></span></div>
+      <div id="btMsg" style="display:none;margin:6px auto 0;padding:5px 6px;background:linear-gradient(135deg,#f6fbf8,#e8f5ef);border-radius:8px;text-align:left;">
+        <div style="font-size:22px;font-weight:600;color:#4a7c59;margin-bottom:2px;text-align:center;;">💌 商家寄语</div>
+        <div id="btMsgText" style="font-size:24px;color:#3d3229;line-height:1.5;word-break:break-word;white-space:pre-wrap;"></div>
       </div>
-      <div style="margin:12px auto 0;font-size:11px;color:#6b5d4d;opacity:0.85;">请使用手机浏览器扫码验证正品</div>
+      <div style="margin:6px auto 0;font-size:22px;color:#6b5d4d;opacity:0.85;">请使用手机浏览器扫码验证正品</div>
     </div>`;
     
-    for(let i=0;i<db.records.length;i++){
-        const r=db.records[i];
+    for(let i=0;i<records.length;i++){
+        const r=records[i];
         document.getElementById("btProd").innerText='品名：'+(r.productName||'-');
         document.getElementById("btNum").innerText=r.batchNo?'专属定制编号：'+r.batchNo:'';
         document.getElementById("btCode").innerText=r.id;
@@ -2082,10 +2127,10 @@ async function exportAllCardsZip(){
     const url=URL.createObjectURL(blob);
     const a=document.createElement("a");
     a.href=url;
-    a.download=`白桦防伪卡片全集_${db.records.length}张_${new Date().toLocaleDateString()}.zip`;
+    a.download=`白桦防伪卡片_${db.records.length}张_${new Date().toLocaleDateString()}.zip`;
     a.click();
     URL.revokeObjectURL(url);
-    toast("✅ 成功导出 "+db.records.length+" 张卡片到ZIP");
+    toast("✅ 成功导出 "+records.length+" 张卡片到ZIP");
 }
 
 </script>
