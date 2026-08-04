@@ -750,7 +750,7 @@ textarea#dbEditor{width:100%;min-height:240px;padding:12px;border:1px solid var(
 </div>
         <div class="form-item">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-        <label>商家寄语</label>
+        <label>白桦寄语</label>
         <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--text-light);cursor:pointer;font-weight:400;">
             <input type="checkbox" id="chkExpMsg" style="width:15px;height:15px;accent-color:var(--green-main);cursor:pointer;"> 导出
         </label>
@@ -766,7 +766,7 @@ textarea#dbEditor{width:100%;min-height:240px;padding:12px;border:1px solid var(
                     <div class="export-code">防伪码：<span id="expCode">-</span></div>
                     <div class="export-qr" id="expQrWrap"></div>
                     <div class="export-msg" id="expMsgWrap" style="display:none;">
-                        <div class="export-msg-label">💌 商家寄语</div>
+                        <div class="export-msg-label">💌 白桦寄语</div>
                         <div class="export-msg-text" id="expMsgText"></div>
                     </div>
                     <div class="export-tip">手机浏览器扫码核验正品</div>
@@ -892,7 +892,7 @@ textarea#dbEditor{width:100%;min-height:240px;padding:12px;border:1px solid var(
                 <div style="font-size:18px;color:var(--text-light);margin:0 auto 6px;text-align:center;word-break:break-all;width:100%;"><span id="prevCode" style="font-family:monospace;font-size:19.5px;color:var(--green-main);font-weight:normal;background:#f6fbf8;padding:3px 10px;border-radius:6px;display:inline-block;margin-top:4px;">-</span></div>
                 <div class="preview-qr" id="prevQrWrap"></div>
                 <div class="preview-msg" id="prevMsgWrap" style="display:none;">
-                    <div class="preview-msg-label">💌 商家寄语</div>
+                    <div class="preview-msg-label">💌 白桦寄语</div>
                     <div class="preview-msg-text" id="prevMsgText"></div>
                 </div>
                 <div class="preview-tip">手机浏览器扫码核验正品</div>
@@ -1361,7 +1361,7 @@ function buildExportHtml(records){
 ${r.batchNo ? `<div style="font-size:19.5px;color:var(--text-light);background:transparent;padding:0;margin:0 auto 6px;text-align:center;letter-spacing:1px;">专属定制编号：${escapeHtml(r.batchNo)}</div>` : ''}
             <div style="font-size:18px;color:var(--text-light);margin:3px auto 0;text-align:center;word-break:break-all;width:100%;"><span style="font-family:monospace;font-size:19.5px;color:var(--green-main);font-weight:normal;background:#f6fbf8;padding:3px 10px;border-radius:6px;display:inline-block;margin-top:4px;">${escapeHtml(r.id)}</span></div>
             <div class="card-qr" style="position:relative;display:inline-block;"><img src="${qrUrl}" alt="QR" style="display:block;"></div>
-${(r.exportMsg === true && r.message) ? `<div class="card-msg"><div class="card-msg-label">💌 商家寄语</div><div class="card-msg-text">${escapeHtml(r.message)}</div></div>` : ''}
+${(r.exportMsg === true && r.message) ? `<div class="card-msg"><div class="card-msg-label">💌 白桦寄语</div><div class="card-msg-text">${escapeHtml(r.message)}</div></div>` : ''}
             <div class="card-tip">手机浏览器扫码核验正品</div>
         </div>`;
     }).join('');
@@ -1582,12 +1582,14 @@ async function purgeRecord(id){
     if(pwd !== adminPwd){
         return toast("密码错误，删除已取消");
     }
+    toast("🗑️ 正在删除记录，请稍候...");
+    await new Promise(r => setTimeout(r, 300));
     const r = db.recycleBin.find(x => x.id === id);
     db.recycleBin = db.recycleBin.filter(x => x.id !== id);
     saveRecycleBin();
     renderRecycleBin();
     logSession('purge', r ? [r.productName || r.product_name] : []);
-    toast("记录已彻底删除");
+    toast("✅ 记录已彻底删除");
 }
 
 
@@ -1602,12 +1604,14 @@ async function batchPurge(){
     if(pwd !== adminPwd){
         return toast("密码错误，操作已取消");
     }
+    toast("🗑️ 正在清空回收站，请稍候...");
+    await new Promise(r => setTimeout(r, 300));
     const names = db.recycleBin.map(r => r.productName || r.product_name);
     db.recycleBin = [];
     saveRecycleBin();
     renderRecycleBin();
     logSession('clearRecycle', names.length ? names : ['清空回收站']);
-    toast('回收站已清空');
+    toast("✅ 回收站已清空");
 }
 
 // ================== 18. 存档系统 ==================
@@ -1738,9 +1742,13 @@ async function restoreArchive(index){
     if(!confirm(`确定要用此存档恢复覆盖当前数据库吗？\n\n存档时间：${arc.date}\n记录数：${rCount} 条\n\n⚠️ 当前云端数据库将被清空并替换为此存档内容！`)) return;
     if(!currentAdminPwd) return toast("管理员密码已过期，请重新进入后台");
     
+    toast("📦 正在恢复存档并覆盖数据库，请稍候...");
+    
     // 先同步当前云端数据，获取全部现有 ID
     await loadData();
     const currentIds = db.records.map(r => r.id);
+    
+    toast("🗑️ 正在清空现有云端数据...");
     // 用 delete_records 分批删除现有记录（避免 clear_all_records 无 WHERE 报错）
     if(currentIds.length > 0){
         const { error: delErr } = await supabaseClient.rpc('delete_records', {
@@ -1748,28 +1756,31 @@ async function restoreArchive(index){
             p_pwd: currentAdminPwd
         });
         if(delErr){
-            toast("清空现有数据失败："+delErr.message);
+            toast("❌ 清空现有数据失败："+delErr.message);
             return;
         }
     }
     
     // 批量插入存档数据
     if(arc.records && arc.records.length > 0){
+        toast("⬆️ 正在写入存档数据（"+arc.records.length+" 条）...");
         const { data: d2, error: e2 } = await supabaseClient.rpc('batch_insert_records', {
             p_records: arc.records,
             p_pwd: currentAdminPwd
         });
         if(e2 || !d2){
-            toast("恢复失败："+(e2?.message||"请检查数据格式"));
+            toast("❌ 恢复失败："+(e2?.message||"请检查数据格式"));
             return;
         }
     }
+    
     // 恢复回收站
     if(arc.recycleBin){
         db.recycleBin = arc.recycleBin;
         saveRecycleBin();
         renderRecycleBin();
     }
+    
     await loadData();
     logSession('restoreArchive', ['存档恢复']);
     toast("✅ 存档恢复成功！数据库已覆盖");
@@ -2036,7 +2047,7 @@ async function submitVerify(){
     infoWrap.innerHTML = html;
     if(record.message){
         msgWrap.classList.add("show");
-        msgWrap.innerHTML = `<div style="font-weight:600;margin-bottom:8px;">商家寄语 💌</div>${record.message}`;
+        msgWrap.innerHTML = `<div style="font-weight:600;margin-bottom:8px;">白桦寄语 💌</div>${record.message}`;
     }
     if(record.verify_count === 1){
         circle.className = "circle circle-success";
@@ -2378,7 +2389,7 @@ async function exportAllCardsZip(){
 <div style="font-size:24px;color:#6b5d4d;margin:3px auto 6px;word-break:break-all;">防伪码：<span id="btCode" style="font-family:monospace;font-size:26px;color:#4a7c59;font-weight:600;background:#f6fbf8;padding:3px 10px;border-radius:6px;display:inline-block;margin-top:4px;"></span></div>
       <div style="width:150px;height:150px;margin:0 auto 6px;background:#fff;border:1px solid #c8d9c8;border-radius:14px;padding:6px;display:flex;align-items:center;justify-content:center;"><img id="btQr" width="136" height="136" style="display:block;"></div>
       <div id="btMsg" style="display:none;margin:6px auto 0;padding:5px 6px;background:linear-gradient(135deg,#f6fbf8,#e8f5ef);border-radius:8px;text-align:left;">
-        <div style="font-size:22px;font-weight:600;color:#4a7c59;margin-bottom:2px;text-align:center;;">💌 商家寄语</div>
+        <div style="font-size:22px;font-weight:600;color:#4a7c59;margin-bottom:2px;text-align:center;;">💌 白桦寄语</div>
         <div id="btMsgText" style="font-size:24px;color:#3d3229;line-height:1.5;word-break:break-word;white-space:pre-wrap;"></div>
       </div>
       <div style="margin:6px auto 0;font-size:22px;color:#6b5d4d;opacity:0.85;">手机浏览器扫码核验正品</div>
