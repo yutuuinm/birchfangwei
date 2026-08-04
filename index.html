@@ -951,6 +951,7 @@ const ARCHIVE_KEY = "birch_archive_v1";
 const ARCHIVE_INTERVAL = 5 * 24 * 60 * 60 * 1000; // 5天
 const ARCHIVE_RETENTION = 5 * 24 * 60 * 60 * 1000; // 保留5天
 let keySeq = ""; // 用于检测 fftt0227
+let sessionLog = []; // 记录本次会话的增删改操作
 // ================== 3. 数据加载（从云端拉取） ==================
 async function loadData(){
     const { data, error } = await supabaseClient
@@ -975,7 +976,6 @@ async function loadData(){
         }));
     }
     renderDbList();
-    autoArchive(); // 数据加载完成后再检查存档
 }
 
 
@@ -1044,13 +1044,15 @@ function closePwdModal(){
 
 async function checkPwd(){
     const val = document.getElementById("pwdInput").value.trim();
+    toast("正在进入管理员后台...");
     const { data, error } = await supabaseClient.rpc('verify_admin_pwd', { pwd: val });
     if(error){
         document.getElementById("pwdErr").innerText = "验证出错："+error.message;
         return;
     }
     if(data === true){
-        currentAdminPwd = val; // 缓存密码，后续 RPC 都要用
+        currentAdminPwd = val; // 新增：缓存密码，供后续 RPC 使用
+        sessionStorage.setItem('birch_admin_pwd', val);
         closePwdModal();
         document.getElementById("homePanel").style.display="none";
         document.getElementById("genPanel").classList.add("show");
@@ -1194,7 +1196,7 @@ if(data === false){
 
     db.records.unshift(record);
     saveData();
-    forceArchive('create', [record.productName]); // 数据修改后强制存档
+    logSession('create', [record.productName]);
     currentQrData = record;
 
     const wrap = document.getElementById("qrShow");
@@ -1268,7 +1270,7 @@ async function batchCreateCode(){
 
     toast(`批量${num}个防伪码已入库`);
     await loadData();
-    forceArchive('batchCreate', [name]); // 数据修改后强制存档
+    logSession('batchCreate', [name]);
 }
 
 
@@ -1457,7 +1459,7 @@ async function saveDbFromText(){
             saveRecycleBin();
             renderRecycleBin();
         }
-        forceArchive('import', ['数据库覆盖']); // 数据修改后强制存档
+        logSession('import', ['数据库覆盖']);
         closeDbModal();
         toast("数据库导入/覆盖成功");
     }catch(err){
@@ -1566,43 +1568,45 @@ async function restoreRecord(id){
     saveRecycleBin();
     await loadData();
     renderRecycleBin();
-    forceArchive('restore', [r.productName]); // 数据修改后强制存档
+    logSession('restore', [r.productName]);
     toast("记录已恢复");
 }
 
 async function purgeRecord(id){
     const pwd = prompt("⚠️ 彻底删除后不可恢复，请输入管理员密码确认：");
     if(!pwd) return;
-    if(pwd !== currentAdminPwd){
+    const adminPwd = currentAdminPwd || sessionStorage.getItem('birch_admin_pwd');
+    if(!adminPwd){
+        return toast("管理员密码已过期，请重新进入后台");
+    }
+    if(pwd !== adminPwd){
         return toast("密码错误，删除已取消");
     }
     const r = db.recycleBin.find(x => x.id === id);
-    // 同步清理云端（幂等，防止残留）
-    await supabaseClient.rpc('delete_records', { p_ids: [id], p_pwd: currentAdminPwd }).catch(()=>{});
     db.recycleBin = db.recycleBin.filter(x => x.id !== id);
     saveRecycleBin();
     renderRecycleBin();
-    forceArchive('purge', r ? [r.productName] : []); // 数据修改后强制存档
+    logSession('purge', r ? [r.productName || r.product_name] : []);
     toast("记录已彻底删除");
 }
+
 
 async function batchPurge(){
     if(db.recycleBin.length === 0) return toast('回收站为空');
     const pwd = prompt("⚠️ 即将清空回收站，彻底删除 "+db.recycleBin.length+" 条记录，请输入管理员密码确认：");
     if(!pwd) return;
-    if(pwd !== currentAdminPwd){
+    const adminPwd = currentAdminPwd || sessionStorage.getItem('birch_admin_pwd');
+    if(!adminPwd){
+        return toast("管理员密码已过期，请重新进入后台");
+    }
+    if(pwd !== adminPwd){
         return toast("密码错误，操作已取消");
     }
-    const names = db.recycleBin.map(r => r.productName);
-    const ids = db.recycleBin.map(r => r.id);
-    // 同步清理云端残留（幂等，走RPC避免DELETE WHERE报错）
-    if(ids.length > 0){
-        await supabaseClient.rpc('delete_records', { p_ids: ids, p_pwd: currentAdminPwd }).catch(()=>{});
-    }
+    const names = db.recycleBin.map(r => r.productName || r.product_name);
     db.recycleBin = [];
     saveRecycleBin();
     renderRecycleBin();
-    forceArchive('clearRecycle', names.length ? names : ['清空回收站']); // 数据修改后强制存档
+    logSession('clearRecycle', names.length ? names : ['清空回收站']);
     toast('回收站已清空');
 }
 
@@ -1651,24 +1655,39 @@ function autoArchive(){
     }
 }
 
-function forceArchive(action, names){
+function forceArchive(){
+    if(sessionLog.length === 0) return; // 无修改不存档
+    
     let list = getArchives();
     const MAX_ARCHIVES = 30;
     while(list.length >= MAX_ARCHIVES){ list.shift(); }
+    
     const archive = {
         timestamp: Date.now(),
         date: new Date().toLocaleString(),
         records: JSON.parse(JSON.stringify(db.records)),
         recycleBin: JSON.parse(JSON.stringify(db.recycleBin)),
         log: {
-            action: action || 'unknown',
-            names: names || []
+            action: 'session',
+            details: sessionLog.map(entry => ({
+                action: getActionLabel(entry.action),
+                names: entry.names
+            }))
         }
     };
     list.push(archive);
     saveArchives(list);
-    console.log("[强制存档]", action, names);
+    console.log("[会话存档] 已创建：", archive.date, "操作数：", sessionLog.length);
+    sessionLog = []; // 清空本次记录
 }
+
+function logSession(action, names){
+    sessionLog.push({
+        action: action,
+        names: Array.isArray(names) ? names : (names ? [names] : [])
+    });
+}
+
 
 function getActionLabel(action){
     const map = {
@@ -1689,15 +1708,21 @@ function renderArchiveList(){
     list.slice().reverse().forEach((arc, idx) => {
         const realIdx = list.length - 1 - idx;
         const rCount = (arc.records && arc.records.length) || 0;
-        const logText = arc.log ? `📝 ${getActionLabel(arc.log.action)}：${Array.isArray(arc.log.names)?arc.log.names.join('、'):arc.log.names}` : '';
+        let summary = '';
+        if(arc.log && arc.log.details && arc.log.details.length){
+            summary = arc.log.details.map(d => `${d.action}：${d.names.join('、')}`).join('；');
+        } else if(arc.log && arc.log.names){
+            summary = `${getActionLabel(arc.log.action)}：${arc.log.names.join('、')}`;
+        }
         html += `<div class="db-record">
             <div class="db-record-main" style="margin-left:0;flex:1;min-width:0;">
                 <div class="db-record-header">
                     <span class="db-record-id">🕐 ${arc.date}</span>
                     <span style="font-size:11px;color:var(--green-main);background:#f6fbf8;padding:2px 8px;border-radius:6px;">${rCount} 条记录</span>
                 </div>
-                ${logText ? `<div style="font-size:12px;color:var(--text-light);margin-top:4px;line-height:1.4;">${logText}</div>` : ''}
+                ${summary ? `<div style="font-size:12px;color:var(--text-light);margin-top:4px;line-height:1.4;">📝 ${summary}</div>` : ''}
                 <div class="db-record-actions">
+                    <button class="btn-view" onclick="showArchiveDetail(${realIdx})">🔍 查看详情</button>
                     <button class="btn-view" onclick="restoreArchive(${realIdx})">↩️ 恢复覆盖当前数据库</button>
                 </div>
             </div>
@@ -1746,9 +1771,44 @@ async function restoreArchive(index){
         renderRecycleBin();
     }
     await loadData();
-    forceArchive('restoreArchive', ['存档恢复']); // 数据修改后强制存档
+    logSession('restoreArchive', ['存档恢复']);
     toast("✅ 存档恢复成功！数据库已覆盖");
 }
+
+
+function showArchiveDetail(index){
+    const list = getArchives();
+    const arc = list[index];
+    if(!arc) return toast("存档不存在或已被清理");
+    
+    let logText = '';
+    if(arc.log && arc.log.details && arc.log.details.length){
+        logText = arc.log.details.map(d => `${d.action}：${d.names.join('、')}`).join('\n');
+    } else if(arc.log && arc.log.names){
+        logText = `${getActionLabel(arc.log.action)}：${arc.log.names.join('、')}`;
+    } else {
+        logText = '（无操作记录）';
+    }
+    
+    let recordsText = '';
+    if(arc.records && arc.records.length > 0){
+        const list = arc.records;
+        const maxNameLen = Math.max(...list.map(r => String(r.productName || r.product_name || '-').length), 2);
+        const maxBatchLen = Math.max(...list.map(r => String(r.batchNo || r.batch_no || '-').length), 2);
+        recordsText = '\n\n记录明细（品名 | 专属编码）：\n';
+        recordsText += list.map((r, i) => {
+            const name = String(r.productName || r.product_name || '-').padEnd(maxNameLen, ' ');
+            const batch = String(r.batchNo || r.batch_no || '-').padEnd(maxBatchLen, ' ');
+            return `${String(i+1).padStart(3, ' ')}. 品名：${name} | 编号：${batch}`;
+        }).join('\n');
+    } else {
+        recordsText = '\n\n（该存档无记录明细）';
+    }
+    
+    const msg = `【存档详情】\n\n存档时间：${arc.date}\n\n操作记录：\n${logText}\n\n记录总数：${(arc.records && arc.records.length) || 0} 条${recordsText}`;
+    setTimeout(()=>alert(msg), 10);
+}
+
 
 function clearAllArchives(){
     if(!confirm("确定要清空所有存档数据吗？此操作不可恢复！")) return;
@@ -1812,7 +1872,7 @@ async function batchDelete(){
     saveRecycleBin();
     renderRecycleBin();
     await loadData();
-    forceArchive('batchDelete', removed.map(r=>r.productName)); // 数据修改后强制存档
+    logSession('batchDelete', removed.map(r=>r.productName));
     toast('已批量删除 '+ids.length+' 条并移入回收站');
 }
 
@@ -1837,7 +1897,7 @@ async function deleteRecord(id){
         renderRecycleBin();
     }
     await loadData();
-    forceArchive('delete', [r.productName]); // 数据修改后强制存档
+    logSession('delete', [r.productName]);
     toast("记录已删除并移入回收站");
 }
 
@@ -2057,6 +2117,13 @@ window.onload = async function(){
         if(isOnBirchDomain) toast("🔗 白桦官方防伪系统，正在自动验证...");
         await submitVerify();
     }
+    
+    // 关闭页面时自动存档（记录本次会话所有增删改操作）
+    window.addEventListener('beforeunload', function(){
+        if(currentAdminPwd){
+            forceArchive();
+        }
+    });
 }
 
 
