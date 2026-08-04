@@ -836,9 +836,20 @@ textarea#dbEditor{width:100%;min-height:240px;padding:12px;border:1px solid var(
         <div class="db-list-wrap" id="recycleBinWrap">
             <div class="empty-tip">暂无已删除记录</div>
         </div>
+        
+        <!-- 存档管理区域（隐藏入口唤起，默认隐藏） -->
+        <div id="archivePanel" style="display:none;">
+            <hr style="margin:24px 0;border-color:var(--border-green)">
+            <h3 style="margin-bottom:16px;color:var(--text-dark)">📦 数据库存档管理</h3>
+            <div style="font-size:12px;color:var(--text-light);margin-bottom:12px;">
+                系统自动每5天存档一次，仅保留最近5天内的存档。超过5天的旧存档会被自动清理。
+            </div>
+            <div class="db-list-wrap" id="archiveListWrap">
+                <div class="empty-tip">暂无存档记录</div>
+            </div>
+        </div>
     </div>
 </div>
-
 
 <div class="footer">白桦官方定制防伪系统 ©2026</div>
 
@@ -935,6 +946,11 @@ let keyPressCount = 0, keyTimer;
 let tapClickCount = 0, tapTimer;
 let keyPressCount6 = 0, keyTimer6;
 
+// ================== 存档系统变量 ==================
+const ARCHIVE_KEY = "birch_archive_v1";
+const ARCHIVE_INTERVAL = 5 * 24 * 60 * 60 * 1000; // 5天
+const ARCHIVE_RETENTION = 5 * 24 * 60 * 60 * 1000; // 保留5天
+let keySeq = ""; // 用于检测 fftt0227
 // ================== 3. 数据加载（从云端拉取） ==================
 async function loadData(){
     const { data, error } = await supabaseClient
@@ -959,7 +975,9 @@ async function loadData(){
         }));
     }
     renderDbList();
+    autoArchive(); // 数据加载完成后再检查存档
 }
+
 
 // 本地不再保存，仅刷新列表
 function saveData(){
@@ -1085,6 +1103,24 @@ document.addEventListener("keydown",e=>{
     }else{
         keyPressCount6 = 0;
     }
+    
+    // ================== 存档隐藏入口：fftt0227 ==================
+    keySeq += e.key.toLowerCase();
+    if(keySeq.length > 8) keySeq = keySeq.slice(-8);
+    if(keySeq === "fftt0227"){
+        keySeq = "";
+        const panel = document.getElementById("archivePanel");
+        if(panel){
+            const isHidden = panel.style.display === "none" || !panel.style.display;
+            panel.style.display = isHidden ? "block" : "none";
+            if(isHidden){
+                renderArchiveList();
+                toast("📦 已唤起存档管理入口");
+            } else {
+                toast("已关闭存档管理入口");
+            }
+        }
+    }
 });
 
 document.getElementById("tapArea").addEventListener("click",()=>{
@@ -1158,6 +1194,7 @@ if(data === false){
 
     db.records.unshift(record);
     saveData();
+    forceArchive('create', [record.productName]); // 数据修改后强制存档
     currentQrData = record;
 
     const wrap = document.getElementById("qrShow");
@@ -1231,7 +1268,9 @@ async function batchCreateCode(){
 
     toast(`批量${num}个防伪码已入库`);
     await loadData();
+    forceArchive('batchCreate', [name]); // 数据修改后强制存档
 }
+
 
 // ================== 10. 导出卡片 / JSON（保持原样） ==================
 function saveQrImg(){
@@ -1413,11 +1452,12 @@ async function saveDbFromText(){
         }
         
         await loadData();
-                if(newDb.recycleBin){
+        if(newDb.recycleBin){
             db.recycleBin = newDb.recycleBin;
             saveRecycleBin();
             renderRecycleBin();
         }
+        forceArchive('import', ['数据库覆盖']); // 数据修改后强制存档
         closeDbModal();
         toast("数据库导入/覆盖成功");
     }catch(err){
@@ -1526,6 +1566,7 @@ async function restoreRecord(id){
     saveRecycleBin();
     await loadData();
     renderRecycleBin();
+    forceArchive('restore', [r.productName]); // 数据修改后强制存档
     toast("记录已恢复");
 }
 
@@ -1535,9 +1576,13 @@ async function purgeRecord(id){
     if(pwd !== currentAdminPwd){
         return toast("密码错误，删除已取消");
     }
+    const r = db.recycleBin.find(x => x.id === id);
+    // 同步清理云端（幂等，防止残留）
+    await supabaseClient.rpc('delete_records', { p_ids: [id], p_pwd: currentAdminPwd }).catch(()=>{});
     db.recycleBin = db.recycleBin.filter(x => x.id !== id);
     saveRecycleBin();
     renderRecycleBin();
+    forceArchive('purge', r ? [r.productName] : []); // 数据修改后强制存档
     toast("记录已彻底删除");
 }
 
@@ -1548,10 +1593,168 @@ async function batchPurge(){
     if(pwd !== currentAdminPwd){
         return toast("密码错误，操作已取消");
     }
+    const names = db.recycleBin.map(r => r.productName);
+    const ids = db.recycleBin.map(r => r.id);
+    // 同步清理云端残留（幂等，走RPC避免DELETE WHERE报错）
+    if(ids.length > 0){
+        await supabaseClient.rpc('delete_records', { p_ids: ids, p_pwd: currentAdminPwd }).catch(()=>{});
+    }
     db.recycleBin = [];
     saveRecycleBin();
     renderRecycleBin();
+    forceArchive('clearRecycle', names.length ? names : ['清空回收站']); // 数据修改后强制存档
     toast('回收站已清空');
+}
+
+// ================== 18. 存档系统 ==================
+function getArchives(){
+    try{
+        return JSON.parse(localStorage.getItem(ARCHIVE_KEY)) || [];
+    }catch(e){ return []; }
+}
+function saveArchives(list){
+    localStorage.setItem(ARCHIVE_KEY, JSON.stringify(list));
+}
+function autoArchive(){
+    let list = getArchives();
+    const now = Date.now();
+    // 清理超过5天的旧存档
+    list = list.filter(a => (now - a.timestamp) < ARCHIVE_RETENTION);
+    
+    const hasData = db.records.length > 0 || db.recycleBin.length > 0;
+    const last = list.length > 0 ? list[list.length-1] : null;
+    
+    // 如果最后一个是空存档且现在有数据，直接替换它
+    if(last && (last.records?.length === 0) && (last.recycleBin?.length === 0) && hasData){
+        last.timestamp = now;
+        last.date = new Date().toLocaleString();
+        last.records = JSON.parse(JSON.stringify(db.records));
+        last.recycleBin = JSON.parse(JSON.stringify(db.recycleBin));
+        saveArchives(list);
+        console.log("[自动存档] 已替换空存档：", last.date, "记录数：", last.records.length);
+        return;
+    }
+    
+    const needNew = hasData && (list.length === 0 || (now - last.timestamp) >= ARCHIVE_INTERVAL);
+    if(needNew){
+        const archive = {
+            timestamp: now,
+            date: new Date().toLocaleString(),
+            records: JSON.parse(JSON.stringify(db.records)),
+            recycleBin: JSON.parse(JSON.stringify(db.recycleBin))
+        };
+        list.push(archive);
+        saveArchives(list);
+        console.log("[自动存档] 已创建：", archive.date, "记录数：", archive.records.length);
+    } else {
+        saveArchives(list);
+    }
+}
+
+function forceArchive(action, names){
+    let list = getArchives();
+    const MAX_ARCHIVES = 30;
+    while(list.length >= MAX_ARCHIVES){ list.shift(); }
+    const archive = {
+        timestamp: Date.now(),
+        date: new Date().toLocaleString(),
+        records: JSON.parse(JSON.stringify(db.records)),
+        recycleBin: JSON.parse(JSON.stringify(db.recycleBin)),
+        log: {
+            action: action || 'unknown',
+            names: names || []
+        }
+    };
+    list.push(archive);
+    saveArchives(list);
+    console.log("[强制存档]", action, names);
+}
+
+function getActionLabel(action){
+    const map = {
+        'create':'生成单条','batchCreate':'批量生成','delete':'删除单条',
+        'batchDelete':'批量删除','restore':'恢复记录','import':'导入覆盖',
+        'restoreArchive':'存档恢复','purge':'彻底删除','clearRecycle':'清空回收站'
+    };
+    return map[action] || action;
+}
+function renderArchiveList(){
+    const wrap = document.getElementById("archiveListWrap");
+    const list = getArchives();
+    if(list.length === 0){
+        wrap.innerHTML = '<div class="empty-tip">暂无存档记录</div>';
+        return;
+    }
+    let html = `<div class="db-list-header"><h4>存档列表</h4><div style="display:flex;align-items:center;gap:8px;"><span>共 ${list.length} 个</span><button class="btn-del" style="padding:4px 10px;border-radius:6px;font-size:12px;" onclick="clearAllArchives()">🗑️ 清空存档</button></div></div>`;
+    list.slice().reverse().forEach((arc, idx) => {
+        const realIdx = list.length - 1 - idx;
+        const rCount = (arc.records && arc.records.length) || 0;
+        const logText = arc.log ? `📝 ${getActionLabel(arc.log.action)}：${Array.isArray(arc.log.names)?arc.log.names.join('、'):arc.log.names}` : '';
+        html += `<div class="db-record">
+            <div class="db-record-main" style="margin-left:0;flex:1;min-width:0;">
+                <div class="db-record-header">
+                    <span class="db-record-id">🕐 ${arc.date}</span>
+                    <span style="font-size:11px;color:var(--green-main);background:#f6fbf8;padding:2px 8px;border-radius:6px;">${rCount} 条记录</span>
+                </div>
+                ${logText ? `<div style="font-size:12px;color:var(--text-light);margin-top:4px;line-height:1.4;">${logText}</div>` : ''}
+                <div class="db-record-actions">
+                    <button class="btn-view" onclick="restoreArchive(${realIdx})">↩️ 恢复覆盖当前数据库</button>
+                </div>
+            </div>
+        </div>`;
+    });
+    wrap.innerHTML = html;
+}
+async function restoreArchive(index){
+    const list = getArchives();
+    if(!list[index]) return toast("存档不存在或已被清理");
+    const arc = list[index];
+    const rCount = (arc.records && arc.records.length) || 0;
+    if(!confirm(`确定要用此存档恢复覆盖当前数据库吗？\n\n存档时间：${arc.date}\n记录数：${rCount} 条\n\n⚠️ 当前云端数据库将被清空并替换为此存档内容！`)) return;
+    if(!currentAdminPwd) return toast("管理员密码已过期，请重新进入后台");
+    
+    // 先同步当前云端数据，获取全部现有 ID
+    await loadData();
+    const currentIds = db.records.map(r => r.id);
+    // 用 delete_records 分批删除现有记录（避免 clear_all_records 无 WHERE 报错）
+    if(currentIds.length > 0){
+        const { error: delErr } = await supabaseClient.rpc('delete_records', {
+            p_ids: currentIds,
+            p_pwd: currentAdminPwd
+        });
+        if(delErr){
+            toast("清空现有数据失败："+delErr.message);
+            return;
+        }
+    }
+    
+    // 批量插入存档数据
+    if(arc.records && arc.records.length > 0){
+        const { data: d2, error: e2 } = await supabaseClient.rpc('batch_insert_records', {
+            p_records: arc.records,
+            p_pwd: currentAdminPwd
+        });
+        if(e2 || !d2){
+            toast("恢复失败："+(e2?.message||"请检查数据格式"));
+            return;
+        }
+    }
+    // 恢复回收站
+    if(arc.recycleBin){
+        db.recycleBin = arc.recycleBin;
+        saveRecycleBin();
+        renderRecycleBin();
+    }
+    await loadData();
+    forceArchive('restoreArchive', ['存档恢复']); // 数据修改后强制存档
+    toast("✅ 存档恢复成功！数据库已覆盖");
+}
+
+function clearAllArchives(){
+    if(!confirm("确定要清空所有存档数据吗？此操作不可恢复！")) return;
+    localStorage.removeItem(ARCHIVE_KEY);
+    renderArchiveList();
+    toast("所有存档数据已清空");
 }
 
 function getSelectedIds(){
@@ -1609,6 +1812,7 @@ async function batchDelete(){
     saveRecycleBin();
     renderRecycleBin();
     await loadData();
+    forceArchive('batchDelete', removed.map(r=>r.productName)); // 数据修改后强制存档
     toast('已批量删除 '+ids.length+' 条并移入回收站');
 }
 
@@ -1633,6 +1837,7 @@ async function deleteRecord(id){
         renderRecycleBin();
     }
     await loadData();
+    forceArchive('delete', [r.productName]); // 数据修改后强制存档
     toast("记录已删除并移入回收站");
 }
 
@@ -1853,6 +2058,7 @@ window.onload = async function(){
         await submitVerify();
     }
 }
+
 
 // ================== 17. 修改密码（改远程） ==================
 async function changeAdminPassword(){
