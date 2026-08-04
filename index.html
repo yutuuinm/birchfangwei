@@ -1676,28 +1676,34 @@ async function batchPurge(){
     if(db.recycleBin.length === 0) return toast('回收站为空');
     const pwd = prompt("⚠️ 即将清空回收站，彻底删除 "+db.recycleBin.length+" 条记录，请输入管理员密码确认：");
     if(!pwd) return;
-    const adminPwd = currentAdminPwd || sessionStorage.getItem('birch_admin_pwd');
-    if(!adminPwd){
-        return toast("管理员密码已过期，请重新进入后台");
-    }
-    if(pwd !== adminPwd){
-        return toast("密码错误，操作已取消");
-    }
     toast("🗑️ 正在清空回收站，请稍候...");
     await new Promise(r => setTimeout(r, 300));
+    const ids = db.recycleBin.map(r => r.id);
     const names = db.recycleBin.map(r => r.productName || r.product_name);
-    const { data, error } = await supabaseClient.rpc('clear_recycle_bin', {
-        p_pwd: adminPwd
-    });
-    if(error || !data){
-        toast("❌ 清空失败："+(error?.message||"密码无效"));
+    let successCount = 0;
+    let failCount = 0;
+    for(const id of ids){
+        const { data, error } = await supabaseClient.rpc('purge_recycle_bin_one', {
+            p_id: id,
+            p_pwd: pwd
+        });
+        if(error || !data){
+            failCount++;
+        }else{
+            successCount++;
+        }
+    }
+    if(successCount === 0){
+        toast("❌ 清空失败，请检查管理员密码");
         return;
     }
-    db.recycleBin = [];
-    renderRecycleBin();
+    currentAdminPwd = pwd;
+    sessionStorage.setItem('birch_admin_pwd', pwd);
+    await loadRecycleBin();
     logSession('clearRecycle', names.length ? names : ['清空回收站']);
-    toast("✅ 回收站已清空");
+    toast("✅ 已清空 "+successCount+" 条记录"+(failCount>0?"，"+failCount+"条失败":""));
 }
+
 
 // ================== 18. 存档系统 ==================
 async function getArchives(){
