@@ -970,6 +970,7 @@ async function loadData(){
             productName: r.product_name,
             batchNo: r.batch_no,
             message: r.message,
+            exportMsg: r.export_msg,
             createTime: r.create_time,
             createTimestamp: r.create_timestamp,
             verifyCount: r.verify_count,
@@ -1215,10 +1216,9 @@ if(data === false){
 }
 
 
-    db.records.unshift(record);
-    saveData();
+    await loadData();
     logSession('create', [record.productName]);
-    currentQrData = record;
+    currentQrData = db.records.find(r => r.id === record.id) || record;
 
     const wrap = document.getElementById("qrShow");
     wrap.classList.add("show");
@@ -2161,6 +2161,13 @@ document.getElementById("imgFile").onchange = async e=>{
 window.onload = async function(){
     const logoImg = document.querySelector('.brand-logo img');
     if(logoImg) LOGO_BASE64 = logoImg.src;
+    const savedPwd = sessionStorage.getItem('birch_admin_pwd');
+    if(savedPwd){
+        currentAdminPwd = savedPwd;
+        document.getElementById("homePanel").style.display="none";
+        document.getElementById("genPanel").classList.add("show");
+        await loadData();
+    }
     renderDbList();
         loadRecycleBin();
     renderRecycleBin();
