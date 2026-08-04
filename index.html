@@ -877,7 +877,8 @@ textarea#dbEditor{width:100%;min-height:240px;padding:12px;border:1px solid var(
             <div class="preview-card" id="previewCard">
                 <div class="preview-product" id="prevProduct">品名：-</div>
                 <div class="preview-num" id="prevNum">专属定制编号：-</div>
-                <div class="preview-code">防伪码：<span id="prevCode">-</span></div>
+                <div class="preview-code">防伪码：</div>
+                <div style="font-size:18px;color:var(--text-light);margin:0 auto 6px;text-align:center;word-break:break-all;width:100%;"><span id="prevCode" style="font-family:monospace;font-size:19.5px;color:var(--green-main);font-weight:normal;background:#f6fbf8;padding:3px 10px;border-radius:6px;display:inline-block;margin-top:4px;">-</span></div>
                 <div class="preview-qr" id="prevQrWrap"></div>
                 <div class="preview-msg" id="prevMsgWrap" style="display:none;">
                     <div class="preview-msg-label">💌 商家寄语</div>
@@ -1314,11 +1315,12 @@ function buildExportHtml(records){
         return `
         <div class="card-cell">
             <div class="card-num">No.${String(idx+1).padStart(3,'0')}</div>
-            <div style="font-size:22.5px;font-weight:normal;color:var(--text-dark);margin:0 auto 2px;text-align:center;width:100%;">${escapeHtml(r.productName || '白桦定制')}</div>
-            <div style="font-size:19.5px;color:var(--text-light);background:transparent;padding:0;margin:0 auto 6px;text-align:center;letter-spacing:1px;">${r.batchNo ? '专属定制编号：'+escapeHtml(r.batchNo) : ''}</div>
+      <div style="font-size:24px;color:#6b5d4d;margin:3px auto 2px;word-break:break-all;">防伪码：</div>
+      <div style="font-size:24px;color:#6b5d4d;margin:0 auto 6px;word-break:break-all;"><span id="btCode" style="font-family:monospace;font-size:26px;color:#4a7c59;font-weight:600;background:#f6fbf8;padding:3px 10px;border-radius:6px;display:inline-block;margin-top:4px;"></span></div>
+${r.batchNo ? `<div style="font-size:19.5px;color:var(--text-light);background:transparent;padding:0;margin:0 auto 6px;text-align:center;letter-spacing:1px;">专属定制编号：${escapeHtml(r.batchNo)}</div>` : ''}
             <div style="font-size:18px;color:var(--text-light);margin:3px auto 0;text-align:center;word-break:break-all;width:100%;"><span style="font-family:monospace;font-size:19.5px;color:var(--green-main);font-weight:normal;background:#f6fbf8;padding:3px 10px;border-radius:6px;display:inline-block;margin-top:4px;">${escapeHtml(r.id)}</span></div>
             <div class="card-qr" style="position:relative;display:inline-block;"><img src="${qrUrl}" alt="QR" style="display:block;"></div>
-            ${(r.exportMsg !== false && r.message) ? `<div class="card-msg"><div class="card-msg-label">💌 商家寄语</div><div class="card-msg-text">${escapeHtml(r.message)}</div></div>` : ''}
+${(r.exportMsg === true && r.message) ? `<div class="card-msg"><div class="card-msg-label">💌 商家寄语</div><div class="card-msg-text">${escapeHtml(r.message)}</div></div>` : ''}
             <div class="card-tip">手机浏览器扫码核验正品</div>
         </div>`;
     }).join('');
@@ -2111,13 +2113,18 @@ async function exportAllCardsZip(){
     
     for(let i=0;i<records.length;i++){
         const r=records[i];
-        document.getElementById("btProd").innerText='品名：'+(r.productName||'-');
-        document.getElementById("btNum").innerText=r.batchNo?'专属定制编号：'+r.batchNo:'';
+        const btProd = document.getElementById("btProd");
+        btProd.innerText='品名：'+(r.productName||'-');
+        btProd.style.display = "block";
+        const btNum = document.getElementById("btNum");
+        btNum.innerText=r.batchNo?'专属定制编号：'+r.batchNo:'';
+        btNum.style.display = (r.batchNo) ? "block" : "none";
         document.getElementById("btCode").innerText=r.id;
         document.getElementById("btQr").src=qrMap[r.id];
         const msgBox=document.getElementById("btMsg");
-        if(r.exportMsg !== false && r.message){msgBox.style.display="block";document.getElementById("btMsgText").innerText=r.message;}
+        if(r.exportMsg === true && r.message){msgBox.style.display="block";document.getElementById("btMsgText").innerText=r.message;}
         else{msgBox.style.display="none";}
+
         document.getElementById("batchCardTmpl").offsetHeight;
         await new Promise(r=>setTimeout(r,50));
         const canvas=await html2canvas(document.getElementById("batchCardTmpl"),{backgroundColor:"#ffffff",scale:2,useCORS:true,logging:false});
