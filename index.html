@@ -1652,7 +1652,7 @@ function previewRecord(id){
     new QRCode(qrWrap, { text: url, width: 150, height: 150, colorDark: "#274637", colorLight: "#ffffff" });
     const msgWrap = document.getElementById("prevMsgWrap");
     const msgText = document.getElementById("prevMsgText");
-    if(r.exportMsg !== false && r.message){
+    if(r.exportMsg === true && r.message){
         msgWrap.style.display = "block";
         msgText.innerText = r.message;
     } else {
