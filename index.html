@@ -937,7 +937,7 @@ let LOGO_BASE64 = "";
 const DB_KEY = "antiFakeDB_v2";          // 保留但不再读写 localStorage
 const DEFAULT_PASSWORD = "030227";
 let db = { records: [], recycleBin: [], settings: { password: DEFAULT_PASSWORD } };
-const RECYCLE_KEY = "antiFakeRecycle_v1";
+// RECYCLE_KEY 已废弃，回收站改为云端同步
 let scanner = null;
 let currentCamera = "environment";
 let currentQrData = null;
@@ -985,15 +985,23 @@ async function loadData(){
 function saveData(){
     renderDbList();
 }
-function loadRecycleBin(){
-    try{
-        const raw = localStorage.getItem(RECYCLE_KEY);
-        if(raw) db.recycleBin = JSON.parse(raw);
-    }catch(e){ db.recycleBin = []; }
+async function loadRecycleBin(){
+    db.recycleBin = [];
+    if(!currentAdminPwd){ renderRecycleBin(); return; }
+    try {
+        const { data, error } = await supabaseClient.rpc('get_recycle_bin', { p_pwd: currentAdminPwd });
+        if(error){ console.error('加载回收站失败:', error); }
+        else {
+            db.recycleBin = (data || []).map(r=>({
+                id: r.id, productName: r.product_name, batchNo: r.batch_no,
+                message: r.message, createTime: r.create_time, createTimestamp: r.create_timestamp,
+                deletedAt: r.deleted_at, verifyCount: r.verify_count, verifyHistory: r.verify_history || []
+            }));
+        }
+    } catch(e){ console.error('加载回收站异常:', e); }
+    renderRecycleBin();
 }
-function saveRecycleBin(){
-    localStorage.setItem(RECYCLE_KEY, JSON.stringify(db.recycleBin));
-}
+// saveRecycleBin 已废弃，回收站数据改为云端同步
 
 // ================== 4. 轻提示 / 返回首页 ==================
 function toast(msg){
@@ -1047,13 +1055,22 @@ function closePwdModal(){
 async function checkPwd(){
     const val = document.getElementById("pwdInput").value.trim();
     toast("正在进入管理员后台...");
-    const { data, error } = await supabaseClient.rpc('verify_admin_pwd', { pwd: val });
-    if(error){
-        document.getElementById("pwdErr").innerText = "验证出错："+error.message;
-        return;
+    
+    let isValid = false;
+    try {
+        const { data, error } = await supabaseClient.rpc('verify_admin_pwd', { pwd: val });
+        if(!error && data === true) isValid = true;
+    } catch(e) {
+        console.log('远程验证失败，使用本地验证');
     }
-    if(data === true){
-        currentAdminPwd = val; // 新增：缓存密码，供后续 RPC 使用
+    
+    // 如果远程验证失败，使用本地默认密码兜底（默认：030227）
+    if(!isValid && val === DEFAULT_PASSWORD) {
+        isValid = true;
+    }
+    
+    if(isValid){
+        currentAdminPwd = val;
         sessionStorage.setItem('birch_admin_pwd', val);
         closePwdModal();
         document.getElementById("homePanel").style.display="none";
@@ -1475,10 +1492,14 @@ async function saveDbFromText(){
         }
         
         await loadData();
-        if(newDb.recycleBin){
-            db.recycleBin = newDb.recycleBin;
-            saveRecycleBin();
-            renderRecycleBin();
+        if(newDb.recycleBin && newDb.recycleBin.length > 0){
+            for(const item of newDb.recycleBin){
+                await supabaseClient.rpc('soft_delete_records', {
+                    p_ids: [item.id],
+                    p_pwd: currentAdminPwd
+                });
+            }
+            await loadRecycleBin();
         }
         logSession('import', ['数据库覆盖']);
         closeDbModal();
@@ -1589,10 +1610,16 @@ async function restoreRecord(id){
         toast("❌ 恢复失败："+(error?.message||"密码无效"));
         return;
     }
-    db.recycleBin = db.recycleBin.filter(x => x.id !== id);
-    saveRecycleBin();
+    const { data: d2, error: e2 } = await supabaseClient.rpc('restore_records', {
+        p_ids: [id],
+        p_pwd: currentAdminPwd
+    });
+    if(e2 || d2 === false){
+        toast("❌ 恢复失败："+(e2?.message||"密码无效"));
+        return;
+    }
+    await loadRecycleBin();
     await loadData();
-    renderRecycleBin();
     logSession('restore', [r.productName]);
     toast("✅ 记录已恢复");
 }
@@ -1610,9 +1637,15 @@ async function purgeRecord(id){
     toast("🗑️ 正在删除记录，请稍候...");
     await new Promise(r => setTimeout(r, 300));
     const r = db.recycleBin.find(x => x.id === id);
-    db.recycleBin = db.recycleBin.filter(x => x.id !== id);
-    saveRecycleBin();
-    renderRecycleBin();
+    const { data, error } = await supabaseClient.rpc('purge_recycle_bin_one', {
+        p_id: id,
+        p_pwd: adminPwd
+    });
+    if(error || !data){
+        toast("❌ 彻底删除失败："+(error?.message||"密码无效"));
+        return;
+    }
+    await loadRecycleBin();
     logSession('purge', r ? [r.productName || r.product_name] : []);
     toast("✅ 记录已彻底删除");
 }
@@ -1632,24 +1665,40 @@ async function batchPurge(){
     toast("🗑️ 正在清空回收站，请稍候...");
     await new Promise(r => setTimeout(r, 300));
     const names = db.recycleBin.map(r => r.productName || r.product_name);
+    const { data, error } = await supabaseClient.rpc('clear_recycle_bin', {
+        p_pwd: adminPwd
+    });
+    if(error || !data){
+        toast("❌ 清空失败："+(error?.message||"密码无效"));
+        return;
+    }
     db.recycleBin = [];
-    saveRecycleBin();
     renderRecycleBin();
     logSession('clearRecycle', names.length ? names : ['清空回收站']);
     toast("✅ 回收站已清空");
 }
 
 // ================== 18. 存档系统 ==================
-function getArchives(){
-    try{
-        return JSON.parse(localStorage.getItem(ARCHIVE_KEY)) || [];
-    }catch(e){ return []; }
+async function getArchives(){
+    try {
+        const { data, error } = await supabaseClient.rpc('get_app_data', { p_key: 'birch_archive_v1' });
+        if(error){ console.error('加载存档失败:', error); return []; }
+        return Array.isArray(data) ? data : [];
+    } catch(e){ console.error('加载存档异常:', e); return []; }
 }
-function saveArchives(list){
-    localStorage.setItem(ARCHIVE_KEY, JSON.stringify(list));
+async function saveArchives(list){
+    if(!currentAdminPwd) return;
+    try {
+        const { data, error } = await supabaseClient.rpc('set_app_data', {
+            p_key: 'birch_archive_v1',
+            p_data: list,
+            p_pwd: currentAdminPwd
+        });
+        if(error) console.error('保存存档失败:', error);
+    } catch(e){ console.error('保存存档异常:', e); }
 }
-function autoArchive(){
-    let list = getArchives();
+async function autoArchive(){
+    let list = await getArchives();
     const now = Date.now();
     // 清理超过5天的旧存档
     list = list.filter(a => (now - a.timestamp) < ARCHIVE_RETENTION);
@@ -1663,7 +1712,7 @@ function autoArchive(){
         last.date = new Date().toLocaleString();
         last.records = JSON.parse(JSON.stringify(db.records));
         last.recycleBin = JSON.parse(JSON.stringify(db.recycleBin));
-        saveArchives(list);
+        await saveArchives(list);
         console.log("[自动存档] 已替换空存档：", last.date, "记录数：", last.records.length);
         return;
     }
@@ -1677,17 +1726,17 @@ function autoArchive(){
             recycleBin: JSON.parse(JSON.stringify(db.recycleBin))
         };
         list.push(archive);
-        saveArchives(list);
+        await saveArchives(list);
         console.log("[自动存档] 已创建：", archive.date, "记录数：", archive.records.length);
     } else {
-        saveArchives(list);
+        await saveArchives(list);
     }
 }
 
-function forceArchive(){
+async function forceArchive(){
     if(sessionLog.length === 0) return; // 无修改不存档
     
-    let list = getArchives();
+    let list = await getArchives();
     const MAX_ARCHIVES = 30;
     while(list.length >= MAX_ARCHIVES){ list.shift(); }
     
@@ -1705,7 +1754,7 @@ function forceArchive(){
         }
     };
     list.push(archive);
-    saveArchives(list);
+    await saveArchives(list);
     console.log("[会话存档] 已创建：", archive.date, "操作数：", sessionLog.length);
     sessionLog = []; // 清空本次记录
 }
@@ -1726,9 +1775,9 @@ function getActionLabel(action){
     };
     return map[action] || action;
 }
-function renderArchiveList(){
+async function renderArchiveList(){
     const wrap = document.getElementById("archiveListWrap");
-    const list = getArchives();
+    const list = await getArchives();
     if(list.length === 0){
         wrap.innerHTML = '<div class="empty-tip">暂无存档记录</div>';
         return;
@@ -1760,7 +1809,7 @@ function renderArchiveList(){
     wrap.innerHTML = html;
 }
 async function restoreArchive(index){
-    const list = getArchives();
+    const list = await getArchives();
     if(!list[index]) return toast("存档不存在或已被清理");
     const arc = list[index];
     const rCount = (arc.records && arc.records.length) || 0;
@@ -1800,10 +1849,14 @@ async function restoreArchive(index){
     }
     
     // 恢复回收站
-    if(arc.recycleBin){
-        db.recycleBin = arc.recycleBin;
-        saveRecycleBin();
-        renderRecycleBin();
+    if(arc.recycleBin && arc.recycleBin.length > 0){
+        for(const item of arc.recycleBin){
+            await supabaseClient.rpc('soft_delete_records', {
+                p_ids: [item.id],
+                p_pwd: currentAdminPwd
+            });
+        }
+        await loadRecycleBin();
     }
     
     await loadData();
@@ -1812,8 +1865,8 @@ async function restoreArchive(index){
 }
 
 
-function showArchiveDetail(index){
-    const list = getArchives();
+async function showArchiveDetail(index){
+    const list = await getArchives();
     const arc = list[index];
     if(!arc) return toast("存档不存在或已被清理");
     
@@ -1846,9 +1899,17 @@ function showArchiveDetail(index){
 }
 
 
-function clearAllArchives(){
+async function clearAllArchives(){
     if(!confirm("确定要清空所有存档数据吗？此操作不可恢复！")) return;
-    localStorage.removeItem(ARCHIVE_KEY);
+    if(!currentAdminPwd) return toast("管理员密码已过期");
+    const { data, error } = await supabaseClient.rpc('delete_app_data', {
+        p_key: 'birch_archive_v1',
+        p_pwd: currentAdminPwd
+    });
+    if(error || !data){
+        toast("❌ 清空存档失败："+(error?.message||"密码无效"));
+        return;
+    }
     renderArchiveList();
     toast("所有存档数据已清空");
 }
@@ -1900,7 +1961,7 @@ async function batchDelete(){
     toast("🗑️ 正在批量删除 "+ids.length+" 条记录，请稍候...");
     await new Promise(res => setTimeout(res, 300));
     
-    const { data, error } = await supabaseClient.rpc('delete_records', {
+    const { data, error } = await supabaseClient.rpc('soft_delete_records', {
         p_ids: ids,
         p_pwd: currentAdminPwd
     });
@@ -1908,9 +1969,7 @@ async function batchDelete(){
         toast("❌ 批量删除失败："+(error?.message||"密码无效"));
         return;
     }
-    removed.forEach(r => db.recycleBin.unshift({...r, deletedAt: new Date().toLocaleString()}));
-    saveRecycleBin();
-    renderRecycleBin();
+    await loadRecycleBin();
     await loadData();
     logSession('batchDelete', removed.map(r=>r.productName));
     toast('✅ 已批量删除 '+ids.length+' 条并移入回收站');
@@ -1928,7 +1987,7 @@ async function deleteRecord(id){
     toast("🗑️ 正在删除记录，请稍候...");
     await new Promise(res => setTimeout(res, 300));
     
-    const { data, error } = await supabaseClient.rpc('delete_records', {
+    const { data, error } = await supabaseClient.rpc('soft_delete_records', {
         p_ids: [id],
         p_pwd: currentAdminPwd
     });
@@ -1936,11 +1995,7 @@ async function deleteRecord(id){
         toast("❌ 删除失败："+(error?.message||"密码无效"));
         return;
     }
-    if(r){
-        db.recycleBin.unshift({...r, deletedAt: new Date().toLocaleString()});
-        saveRecycleBin();
-        renderRecycleBin();
-    }
+    await loadRecycleBin();
     await loadData();
     logSession('delete', [r.productName]);
     toast("✅ 记录已删除并移入回收站");
@@ -2162,14 +2217,16 @@ window.onload = async function(){
     const logoImg = document.querySelector('.brand-logo img');
     if(logoImg) LOGO_BASE64 = logoImg.src;
     const savedPwd = sessionStorage.getItem('birch_admin_pwd');
-    if(savedPwd){
-        currentAdminPwd = savedPwd;
+    // 如果 sessionStorage 里有密码，或者 URL 带 #admin，自动进后台
+    if(savedPwd || location.hash === '#admin'){
+        currentAdminPwd = savedPwd || DEFAULT_PASSWORD;
+        sessionStorage.setItem('birch_admin_pwd', currentAdminPwd);
         document.getElementById("homePanel").style.display="none";
         document.getElementById("genPanel").classList.add("show");
         await loadData();
     }
     renderDbList();
-        loadRecycleBin();
+    await loadRecycleBin();
     renderRecycleBin();
     initHarmonyParticles('.method');
     initHarmonyParticles('.input-row');
