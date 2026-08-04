@@ -900,6 +900,7 @@ textarea#dbEditor{width:100%;min-height:240px;padding:12px;border:1px solid var(
         </div>
         <div style="display:flex;gap:10px;margin-top:14px;">
             <button class="btn" style="flex:1;" onclick="exportPreviewJpg()">📷 导出为 JPG</button>
+            <button class="btn btn-light" style="flex:1;" onclick="showPreviewMsg()">💌 查看白桦寄语</button>
             <button style="flex:1;padding:12px;border:none;border-radius:10px;background:#e0ede7;color:var(--text-dark);" onclick="closePreviewModal()">关闭</button>
         </div>
     </div>
@@ -1065,13 +1066,33 @@ async function checkPwd(){
 // ================== 6. 唤醒监听（保持原样） ==================
 document.addEventListener("keydown",e=>{
     if(e.key === "8"){
+        if(window._adminCooldown) return;
         keyPressCount++;
         clearTimeout(keyTimer);
         keyTimer = setTimeout(()=>keyPressCount=0,1200);
         if(keyPressCount >=6){
             e.preventDefault();
             keyPressCount = 0;
-            document.getElementById("adminEntry").style.display="block";
+            window._adminCooldown = true;
+            setTimeout(()=>window._adminCooldown=false, 2000);
+            
+            const entry = document.getElementById("adminEntry");
+            entry.style.display = "block";
+            entry.style.opacity = "0";
+            entry.style.transform = "scale(0.92) translateY(10px)";
+            entry.style.transition = "opacity 0.5s ease, transform 0.5s var(--spring)";
+            requestAnimationFrame(()=>{
+                requestAnimationFrame(()=>{
+                    entry.style.opacity = "1";
+                    entry.style.transform = "scale(1) translateY(0)";
+                });
+            });
+            setTimeout(()=>{
+                entry.style.transition = "";
+                entry.style.opacity = "";
+                entry.style.transform = "";
+            }, 600);
+            
             openPwdModal();
             setTimeout(()=>{
                 const pwdInput = document.getElementById("pwdInput");
@@ -1551,6 +1572,10 @@ async function restoreRecord(id){
     const r = db.recycleBin.find(x => x.id === id);
     if(!r) return toast("记录不存在");
     if(!currentAdminPwd) return toast("管理员密码已过期");
+    
+    toast("↩️ 正在恢复记录，请稍候...");
+    await new Promise(res => setTimeout(res, 300));
+    
     const { data, error } = await supabaseClient.rpc('insert_record', {
         p_id: r.id,
         p_product_name: r.productName,
@@ -1561,7 +1586,7 @@ async function restoreRecord(id){
         p_pwd: currentAdminPwd
     });
     if(error || data === false){
-        toast("恢复失败："+(error?.message||"密码无效"));
+        toast("❌ 恢复失败："+(error?.message||"密码无效"));
         return;
     }
     db.recycleBin = db.recycleBin.filter(x => x.id !== id);
@@ -1569,7 +1594,7 @@ async function restoreRecord(id){
     await loadData();
     renderRecycleBin();
     logSession('restore', [r.productName]);
-    toast("记录已恢复");
+    toast("✅ 记录已恢复");
 }
 
 async function purgeRecord(id){
@@ -1871,12 +1896,16 @@ async function batchDelete(){
     const firstName = first && first.productName ? first.productName : '未命名产品';
     if(!confirm('确定要批量删除选中的 '+ids.length+' 条记录吗？\n\n首条：'+firstTime+' 生成的 '+firstName+' 等\n\n（删除后将移至回收站）')) return;
     if(!currentAdminPwd) return toast("管理员密码已过期");
+    
+    toast("🗑️ 正在批量删除 "+ids.length+" 条记录，请稍候...");
+    await new Promise(res => setTimeout(res, 300));
+    
     const { data, error } = await supabaseClient.rpc('delete_records', {
         p_ids: ids,
         p_pwd: currentAdminPwd
     });
     if(error || !data){
-        toast("批量删除失败："+(error?.message||"密码无效"));
+        toast("❌ 批量删除失败："+(error?.message||"密码无效"));
         return;
     }
     removed.forEach(r => db.recycleBin.unshift({...r, deletedAt: new Date().toLocaleString()}));
@@ -1884,8 +1913,9 @@ async function batchDelete(){
     renderRecycleBin();
     await loadData();
     logSession('batchDelete', removed.map(r=>r.productName));
-    toast('已批量删除 '+ids.length+' 条并移入回收站');
+    toast('✅ 已批量删除 '+ids.length+' 条并移入回收站');
 }
+
 
 
 async function deleteRecord(id){
@@ -1894,12 +1924,16 @@ async function deleteRecord(id){
     const nameStr = r && r.productName ? r.productName : '未命名产品';
     if(!confirm('确定要删除该防伪记录吗？\n\n生成时间：'+timeStr+'\n品名：'+nameStr+'\nID：'+id+'\n\n（删除后将移至回收站，可随时恢复）')) return;
     if(!currentAdminPwd) return toast("管理员密码已过期");
+    
+    toast("🗑️ 正在删除记录，请稍候...");
+    await new Promise(res => setTimeout(res, 300));
+    
     const { data, error } = await supabaseClient.rpc('delete_records', {
         p_ids: [id],
         p_pwd: currentAdminPwd
     });
     if(error || !data){
-        toast("删除失败："+(error?.message||"密码无效"));
+        toast("❌ 删除失败："+(error?.message||"密码无效"));
         return;
     }
     if(r){
@@ -1909,7 +1943,7 @@ async function deleteRecord(id){
     }
     await loadData();
     logSession('delete', [r.productName]);
-    toast("记录已删除并移入回收站");
+    toast("✅ 记录已删除并移入回收站");
 }
 
 
@@ -1930,9 +1964,9 @@ function previewRecord(id){
     new QRCode(qrWrap, { text: url, width: 150, height: 150, colorDark: "#274637", colorLight: "#ffffff" });
     const msgWrap = document.getElementById("prevMsgWrap");
     const msgText = document.getElementById("prevMsgText");
+    msgText.innerText = r.message || "";
     if(r.exportMsg === true && r.message){
         msgWrap.style.display = "block";
-        msgText.innerText = r.message;
     } else {
         msgWrap.style.display = "none";
     }
@@ -1942,6 +1976,21 @@ function previewRecord(id){
 function closePreviewModal(){
     document.getElementById("previewModal").classList.remove("show");
     currentPreviewId = null;
+}
+
+function showPreviewMsg(){
+    const wrap = document.getElementById("prevMsgWrap");
+    const text = document.getElementById("prevMsgText").innerText;
+    if(text && text.trim() !== ""){
+        wrap.style.display = "block";
+        toast("💌 已展开白桦寄语");
+        setTimeout(()=>{
+            const card = document.getElementById("previewCard");
+            if(card) card.scrollIntoView({behavior:"smooth", block:"nearest"});
+        }, 100);
+    }else{
+        toast("该防伪码暂无白桦寄语");
+    }
 }
 
 function exportPreviewJpg(){
